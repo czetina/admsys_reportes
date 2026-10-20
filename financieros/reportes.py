@@ -118,7 +118,8 @@ class Parametros:
     responsable_hasta: str = ""
     solo_electronico: bool = False
     ocultar_bajas: bool = False
-    orden_activos: int = 1        # 1 departamento y tipo de activo, 2 tipo de activo y departamento
+    orden_activos: int = 1        # depreciación: 1 depto/tipo, 2 tipo/depto · ficha: 1 código, 2 nombre · tipos: 2 con responsable
+    codresponsable: str = ""
     dim: str = "cc"               # dimensión de los reportes por centro: cc / ci / ca (Definicion.dimension)
     codci: str = ""
     codca: str = ""

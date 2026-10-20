@@ -363,3 +363,421 @@ def _poliza(b, p, activos, fecha, per):
     rep.hoja = "Poliza"
     rep.encabezado_a, rep.encabezado_b = ("CUENTA", 16), ("DESCRIPCIÓN", 36)
     return rep
+
+
+# ------------------------------------------------------------------ listados (menú 50)
+
+def _fx(d):
+    d = _fecha_valida(d)
+    return d.strftime("%d/%m/%Y") if d else ""
+
+
+def _rangos(p, campos=("activo", "ubica", "tipoact", "depto", "responsable"), alias="a"):
+    columnas = {"activo": "codactivo", "ubica": "codubica", "tipoact": "codtipoact", "depto": "coddepto",
+                "responsable": "codresponsable"}
+    partes, params = [], []
+    for clave in campos:
+        for lado, op in (("desde", ">="), ("hasta", "<=")):
+            valor = getattr(p, f"{clave}_{lado}", "")
+            if valor:
+                partes.append(f"AND {alias}.{columnas[clave]} {op} %s")
+                params.append(valor)
+    return partes, params
+
+
+def _fechas(p, campo, partes, params):
+    for valor, op in ((p.fecha_ini, ">="), (p.fecha_fin, "<=")):
+        if valor:
+            partes.append(f"AND {campo} {op} %s")
+            params.append(valor)
+
+
+def _periodo_txt(p, que):
+    if p.fecha_ini and p.fecha_fin:
+        return f"POR FECHA {que}: {p.fecha_ini:%d/%m/%Y} AL {p.fecha_fin:%d/%m/%Y}"
+    if p.fecha_fin:
+        return f"POR FECHA {que} HASTA EL {p.fecha_fin:%d/%m/%Y}"
+    if p.fecha_ini:
+        return f"POR FECHA {que} DESDE EL {p.fecha_ini:%d/%m/%Y}"
+    return "TODAS LAS FECHAS"
+
+
+def _sin_datos(filas, que="activos"):
+    if not filas:
+        raise ErrorReporte(f"No se encontraron {que} con los parámetros indicados.")
+
+
+def _cierra(b, titulo, subtitulo, cols, filas, enc_a=("CÓDIGO", 14), enc_b=("DESCRIPCIÓN", 40)):
+    rep = b.reporte(titulo, subtitulo, cols, filas)
+    rep.encabezado_a, rep.encabezado_b = enc_a, enc_b
+    return rep
+
+
+def _agrupa(filas, campo):
+    grupos = OrderedDict()
+    for f in filas:
+        grupos.setdefault(_t(f[campo]), []).append(f)
+    return grupos.items()
+
+
+def _fila_listado(a, valores, nivel=2, prefijo=""):
+    return Fila(tipo="cuenta", nivel=nivel, cuenta=_t(a["codactivo"]), nombre=prefijo + _t(a["nombre"]), valores=valores)
+
+
+def _total(nombre, bloque, n, sumas, negrita=False):
+    cuentas = [x for x in bloque if x.tipo == "cuenta"]
+    t = Fila(tipo="total", negrita=negrita, nombre=nombre, valores=[None] * n,
+             rango=(cuentas[0], cuentas[-1]) if cuentas else None)
+    for k in sumas:
+        t.valores[k] = round(sum(x.valores[k] or 0 for x in cuentas), 2)
+    return t
+
+
+SQL_ACCESORIOS = """SELECT c.keytra_mae, a.*, IFNULL(u.nombre, '') AS nom_ubica, IFNULL(r.nombre, '') AS nom_responsable
+  FROM acf_consolidado c
+  JOIN acf_activos a ON a.keytra = c.keytra_add
+  LEFT JOIN acf_ubica u ON u.codempresa = a.codempresa AND u.codubica = a.codubica
+  LEFT JOIN acf_responsables r ON r.codempresa = a.codempresa AND r.codresponsable = a.codresponsable
+ WHERE c.codempresa = %s ORDER BY a.codactivo"""
+
+
+def _accesorios(codempresa):
+    out = defaultdict(list)
+    for f in consulta(SQL_ACCESORIOS, (codempresa,)):
+        out[f["keytra_mae"]].append(f)
+    return out
+
+
+NO_ES_ACCESORIO = """AND NOT EXISTS (SELECT 1 FROM acf_consolidado c
+                                 WHERE c.codempresa = a.codempresa AND c.keytra_add = a.keytra)"""
+
+
+def por_responsable(p):
+    """con_articulos_x_responsable: activos (sin los que son accesorio de otro) por responsable, con sus accesorios."""
+    b = Base(p)
+    partes, params = _rangos(p, ("responsable",))
+    _fechas(p, "a.fecha_compra", partes, params)
+    filas_bd = consulta(f"""
+        SELECT a.*, r.nombre AS nom_responsable, IFNULL(u.nombre, '') AS nom_ubica
+          FROM acf_activos a
+          JOIN acf_responsables r ON r.codempresa = a.codempresa AND r.codresponsable = a.codresponsable
+          LEFT JOIN acf_ubica u ON u.codempresa = a.codempresa AND u.codubica = a.codubica
+         WHERE a.codempresa = %s {NO_ES_ACCESORIO} {' '.join(partes)}
+         ORDER BY a.codresponsable, a.codactivo""", (p.codempresa, *params))
+    _sin_datos(filas_bd)
+    acc = _accesorios(p.codempresa)
+    cols = [Columna("VALOR"), Columna("UBICACIÓN", ancho=24, texto=True), Columna("MARCA", ancho=16, texto=True),
+            Columna("MODELO", ancho=16, texto=True)]
+
+    def valores(a):
+        return [float(a["valorml"] or 0), _t(a["nom_ubica"]), _t(a["marca"]), _t(a["modelo"])]
+    filas, todos = [], []
+    for cod, lista in _agrupa(filas_bd, "codresponsable"):
+        filas.append(Fila(tipo="grupo", cuenta=cod, nombre=_t(lista[0]["nom_responsable"])))
+        bloque = []
+        for a in lista:
+            bloque.append(_fila_listado(a, valores(a)))
+            bloque += [_fila_listado(x, valores(x), nivel=3, prefijo="  ↳ ") for x in acc.get(a["keytra"], [])]
+        filas += bloque + [_total(f"TOTAL {_t(lista[0]['nom_responsable'])}", bloque, len(cols), (0,)), Fila()]
+        todos += bloque
+    filas.append(_total("TOTALES", todos, len(cols), (0,), negrita=True))
+    return _cierra(b, "ARTÍCULOS POR RESPONSABLE", _periodo_txt(p, "DE COMPRA"), cols, filas)
+
+
+def ficha_responsabilidad(p):
+    """
+    con_inventario_tarjeta_responsa: tarjeta de un responsable con sus activos (una fila por unidad del
+    detalle acf_activos_det que le corresponde), por código o por nombre, con la línea de firma.
+    """
+    b = Base(p)
+    filas_bd = consulta("""
+        SELECT a.codactivo, a.nombre, a.serie, a.marca, a.observaciones AS observa, a.codubica,
+               IFNULL(r.nombre, '') AS nom_responsable, IFNULL(r.observaciones, '') AS dpi,
+               IFNULL(dp.nombre, '') AS nombre_depto, d.linea
+          FROM acf_activos a
+          LEFT JOIN acf_activos_det d ON d.codempresa = a.codempresa AND d.codactivo = a.codactivo
+               AND d.codresponsable = a.codresponsable
+          LEFT JOIN acf_responsables r ON r.codempresa = a.codempresa AND r.codresponsable = a.codresponsable
+          LEFT JOIN acf_deptos dp ON dp.codempresa = a.codempresa AND dp.coddepto = a.coddepto
+         WHERE a.codempresa = %s AND a.codresponsable = %s""", (p.codempresa, p.codresponsable))
+    _sin_datos(filas_bd)
+
+    def numero(cod):           # VFP: VAL(SUBSTRING(codactivo, 4)) -> orden numérico del código
+        try:
+            return int(_t(cod)[3:] or 0)
+        except ValueError:
+            return 0
+    if p.orden_activos == 2:
+        filas_bd.sort(key=lambda f: _t(f["nombre"]))
+    else:
+        filas_bd.sort(key=lambda f: (numero(f["codactivo"]), _t(f["codactivo"])))
+    cols = [Columna("MARCA / SERIE", ancho=30, texto=True), Columna("OBSERVACIONES", ancho=40, texto=True)]
+    primero = filas_bd[0]
+    filas = [Fila(tipo="grupo", nombre=f"Departamento: {_t(primero['nombre_depto'])}  ·  "
+                                       f"Ubicación: {_t(primero['codubica'])}")]
+    for a in filas_bd:
+        serie = f"{_t(a['marca'])} {_t(a['serie'])}".strip() if _t(a["serie"]) else "~~~ No tiene serie ~~~"
+        filas.append(_fila_listado(a, [serie, _t(a["observa"])], nivel=1))
+    filas += [Fila(), Fila(tipo="grupo", nombre=f"YO: {_t(primero['nom_responsable'])}    DPI: {_t(primero['dpi'])}"),
+              Fila(tipo="grupo", nombre="Firma: ______________________________")]
+    return _cierra(b, "FICHA DE RESPONSABILIDAD",
+                   f"RESPONSABLE: {_t(primero['nom_responsable'])} ({p.codresponsable})", cols, filas)
+
+
+def por_tipo(p):
+    """
+    con_acfactivos_tipos: activos vigentes a la fecha final (sin baja o con baja posterior), por tipo
+    de activo (y responsable), con proveedor, factura y valores; los accesorios van bajo su activo.
+    """
+    b = Base(p)
+    partes, params = _rangos(p, ("activo", "ubica", "tipoact", "depto", "responsable"))
+    _fechas(p, "a.fecha_compra", partes, params)
+    if p.fecha_fin:
+        partes.append("AND (a.fecha_baja IS NULL OR a.fecha_baja = '0000-00-00' OR a.fecha_baja > %s)")
+        params.append(p.fecha_fin)
+    if p.solo_electronico:
+        partes.append("AND a.tipo_equipo = 1")
+    con_resp = p.orden_activos == 2
+    orden = ("a.codtipoact, a.codresponsable, a.numero, a.fecha_compra, a.nombre" if con_resp
+             else "a.codtipoact, a.fecha_compra, a.codresponsable, a.numero, a.nombre")
+    grupo = (consulta_uno("SELECT codgrupo FROM empresas WHERE codempresa = %s", (p.codempresa,)) or {}).get("codgrupo")
+    filas_bd = consulta(f"""
+        SELECT a.*, IFNULL(t.nombre, '') AS nomtipoact, IFNULL(g.razonsocial, '') AS nomproveedor,
+               IFNULL(u.nombre, '') AS nom_ubica
+          FROM acf_activos a
+          LEFT JOIN acf_tipoact t ON t.codempresa = a.codempresa AND t.codtipoact = a.codtipoact
+          LEFT JOIN grudirectorio g ON g.codgrupo = %s AND g.coddirectorio = a.codproveedor
+          LEFT JOIN acf_ubica u ON u.codempresa = a.codempresa AND u.codubica = a.codubica
+         WHERE a.codempresa = %s {NO_ES_ACCESORIO} {' '.join(partes)}
+         ORDER BY {orden}""", (grupo, p.codempresa, *params))
+    _sin_datos(filas_bd)
+    acc = _accesorios(p.codempresa)
+    cols = [Columna("FECHA COMPRA", ancho=11, texto=True), Columna("UBICACIÓN", ancho=22, texto=True),
+            Columna("MARCA", ancho=14, texto=True), Columna("MODELO", ancho=14, texto=True),
+            Columna("SERIE", ancho=16, texto=True), Columna("PROVEEDOR", ancho=30, texto=True),
+            Columna("FACTURA", ancho=12, texto=True), Columna("VALOR M.E."), Columna("VALOR M.L."),
+            Columna("OBSERVACIONES", ancho=36, texto=True)]
+    n = len(cols)
+
+    def renglon(a, nivel=2, prefijo=""):
+        return _fila_listado(a, [_fx(a["fecha_compra"]), _t(a["nom_ubica"]), _t(a["marca"]), _t(a["modelo"]),
+                                 _t(a["serie"]), _t(a.get("nomproveedor")), _t(a["factura"]),
+                                 float(a["valorme"] or 0), float(a["valorml"] or 0), _t(a["observaciones"])],
+                             nivel, prefijo)
+    filas, todos = [], []
+    for tipo, lista in _agrupa(filas_bd, "codtipoact"):
+        filas.append(Fila(tipo="grupo", cuenta=tipo, nombre=_t(lista[0]["nomtipoact"])))
+        bloque_tipo = []
+        for resp, items in (_agrupa(lista, "codresponsable") if con_resp else [("", lista)]):
+            if con_resp:
+                filas.append(Fila(tipo="cuenta", nivel=1, negrita=True, cuenta=resp,
+                                  nombre=_t(items[0]["nombre_responsable"]), valores=[None] * n))
+            bloque = []
+            for a in items:
+                bloque.append(renglon(a))
+                bloque += [renglon(x, 3, "  ↳ ") for x in acc.get(a["keytra"], [])]
+            filas += bloque
+            if con_resp:
+                filas.append(_total(f"TOTAL {_t(items[0]['nombre_responsable'])}", bloque, n, (7, 8)))
+            bloque_tipo += bloque
+        filas += [_total(f"TOTAL {_t(lista[0]['nomtipoact'])}", bloque_tipo, n, (7, 8), negrita=True), Fila()]
+        todos += bloque_tipo
+    filas.append(_total("TOTALES", todos, n, (7, 8), negrita=True))
+    return _cierra(b, "ACTIVOS FIJOS POR TIPO", _periodo_txt(p, "DE COMPRA"), cols, filas)
+
+
+def no_depreciables(p):
+    """con_articulos_no_depreciables: activos de tipos con 0 % de depreciación, por departamento y tipo."""
+    b = Base(p)
+    partes, params = _rangos(p, ("activo", "ubica", "tipoact", "depto"))
+    if p.fecha_fin:
+        partes.append("AND a.fecha_compra <= %s")
+        params.append(p.fecha_fin)
+    filas_bd = consulta(f"""
+        SELECT a.*, IFNULL(t.nombre, '') AS nombretipoact, IFNULL(dp.nombre, '') AS nombredepto,
+               IFNULL(u.nombre, '') AS nombreubica
+          FROM acf_activos a
+          LEFT JOIN acf_deptos dp ON dp.codempresa = a.codempresa AND dp.coddepto = a.coddepto
+          LEFT JOIN acf_tipoact t ON t.codempresa = a.codempresa AND t.codtipoact = a.codtipoact
+          LEFT JOIN acf_ubica u ON u.codempresa = a.codempresa AND u.codubica = a.codubica
+         WHERE a.codempresa = %s AND t.porcentaje_deprecia = 0 {' '.join(partes)}""", (p.codempresa, *params))
+    _sin_datos(filas_bd, "activos no depreciables")
+    ext, inte = ((("coddepto", "nombredepto"), ("codtipoact", "nombretipoact")) if p.orden_activos != 2 else
+                 (("codtipoact", "nombretipoact"), ("coddepto", "nombredepto")))
+    filas_bd.sort(key=lambda a: (_t(a[ext[0]]), _t(a[inte[0]]), _t(a["codactivo"])))
+    cols = [Columna("FECHA INICIAL", ancho=11, texto=True), Columna("FECHA BAJA", ancho=11, texto=True), Columna("VALOR"),
+            Columna("UBICACIÓN", ancho=24, texto=True), Columna("RESPONSABLE", ancho=30, texto=True)]
+    n = len(cols)
+    filas, todos = [], []
+    for cod, lista in _agrupa(filas_bd, ext[0]):
+        filas.append(Fila(tipo="grupo", cuenta=cod, nombre=_t(lista[0][ext[1]])))
+        sub = []
+        for cod2, items in _agrupa(lista, inte[0]):
+            filas.append(Fila(tipo="cuenta", nivel=1, negrita=True, cuenta=cod2, nombre=_t(items[0][inte[1]]),
+                              valores=[None] * n))
+            bloque = [_fila_listado(a, [_fx(a["fecha_depreciacion"]) or _fx(a["fecha_compra"]), _fx(a["fecha_baja"]),
+                                        float(a["valorml"] or 0), _t(a["nombreubica"]),
+                                        _t(a["nombre_responsable"]) or _t(a["codresponsable"]) or "N/E"])
+                      for a in items]
+            filas += bloque + [_total(f"TOTAL {_t(items[0][inte[1]])}", bloque, n, (2,))]
+            sub += bloque
+        filas += [_total(f"TOTAL {_t(lista[0][ext[1]])}", sub, n, (2,), negrita=True), Fila()]
+        todos += sub
+    filas.append(_total("TOTALES", todos, n, (2,), negrita=True))
+    return _cierra(b, "ARTÍCULOS NO DEPRECIABLES", f"AL {p.fecha_fin:%d/%m/%Y}" if p.fecha_fin else "TODAS LAS FECHAS",
+                   cols, filas)
+
+
+def dados_de_baja(p):
+    """con_articulos_dados_de_baja: activos con su registro en acf_bajas, por fecha de baja."""
+    b = Base(p)
+    partes, params = _rangos(p, ("activo",))
+    _fechas(p, "a.fecha_baja", partes, params)
+    filas_bd = consulta(f"""
+        SELECT a.*, IFNULL(u.nombre, '') AS nom_ubica, IFNULL(bj.descripcion, '') AS motivo
+          FROM acf_activos a
+          JOIN acf_bajas bj ON bj.codempresa = a.codempresa AND bj.keytra = a.keytra
+          LEFT JOIN acf_ubica u ON u.codempresa = a.codempresa AND u.codubica = a.codubica
+         WHERE a.codempresa = %s {' '.join(partes)}
+         ORDER BY a.codactivo""", (p.codempresa, *params))
+    _sin_datos(filas_bd, "activos dados de baja")
+    cols = [Columna("MOTIVO", ancho=36, texto=True), Columna("FECHA BAJA", ancho=11, texto=True),
+            Columna("FECHA COMPRA", ancho=11, texto=True), Columna("VALOR"), Columna("UBICACIÓN", ancho=22, texto=True),
+            Columna("MARCA", ancho=14, texto=True), Columna("MODELO", ancho=14, texto=True)]
+    filas = [_fila_listado(a, [_t(a["motivo"]), _fx(a["fecha_baja"]), _fx(a["fecha_compra"]), float(a["valorml"] or 0),
+                               _t(a["nom_ubica"]), _t(a["marca"]), _t(a["modelo"])], nivel=1) for a in filas_bd]
+    filas.append(_total("TOTALES", filas, len(cols), (3,), negrita=True))
+    return _cierra(b, "ARTÍCULOS DADOS DE BAJA", _periodo_txt(p, "DE BAJA"), cols, filas)
+
+
+def con_accesorios(p):
+    """con_articulos_con_accesorios: cada activo que tiene accesorios (acf_consolidado) y debajo sus accesorios."""
+    b = Base(p)
+    partes, params = _rangos(p, ("activo",))
+    _fechas(p, "a.fecha_compra", partes, params)
+    filas_bd = consulta(f"""
+        SELECT a.*, IFNULL(u.nombre, '') AS nom_ubica, IFNULL(r.nombre, '') AS nom_responsable
+          FROM acf_activos a
+          LEFT JOIN acf_ubica u ON u.codempresa = a.codempresa AND u.codubica = a.codubica
+          LEFT JOIN acf_responsables r ON r.codempresa = a.codempresa AND r.codresponsable = a.codresponsable
+         WHERE a.codempresa = %s
+           AND EXISTS (SELECT 1 FROM acf_consolidado c WHERE c.codempresa = a.codempresa AND c.keytra_mae = a.keytra)
+           {' '.join(partes)}
+         ORDER BY a.codresponsable, a.codactivo""", (p.codempresa, *params))
+    _sin_datos(filas_bd, "activos con accesorios")
+    acc = _accesorios(p.codempresa)
+    cols = [Columna("VALOR"), Columna("VALOR RESCATE"), Columna("FECHA COMPRA", ancho=11, texto=True),
+            Columna("UBICACIÓN", ancho=22, texto=True), Columna("MARCA", ancho=14, texto=True),
+            Columna("MODELO", ancho=14, texto=True), Columna("FECHA BAJA", ancho=11, texto=True),
+            Columna("RESPONSABLE", ancho=30, texto=True)]
+
+    def valores(a):
+        return [float(a["valorml"] or 0), float(a["valor_rescate"] or 0), _fx(a["fecha_compra"]), _t(a["nom_ubica"]),
+                _t(a["marca"]), _t(a["modelo"]), _fx(a["fecha_baja"]), _t(a["nom_responsable"])]
+    filas, todos = [], []
+    for a in filas_bd:
+        principal = _fila_listado(a, valores(a), nivel=1)
+        accesorios = [_fila_listado(x, valores(x), nivel=2, prefijo="  ↳ ") for x in acc.get(a["keytra"], [])]
+        filas += [principal, Fila(tipo="grupo", nombre="   Accesorio(s)")] + accesorios + [Fila()]
+        todos += [principal] + accesorios
+    filas.append(_total("TOTALES", todos, len(cols), (0, 1), negrita=True))
+    return _cierra(b, "ARTÍCULOS CON ACCESORIOS", _periodo_txt(p, "DE COMPRA"), cols, filas)
+
+
+def _responsables_det(codempresa, codactivos):
+    """Responsables vigentes de cada activo según su detalle por unidad (acf_activos_det sin fecha de baja)."""
+    out = defaultdict(list)
+    for lote in (codactivos[i:i + 500] for i in range(0, len(codactivos), 500)):
+        for f in consulta(f"""SELECT DISTINCT d.codactivo, d.codresponsable FROM acf_activos_det d
+                               WHERE d.codempresa = %s AND d.codactivo IN ({','.join(['%s'] * len(lote))})
+                                 AND IFNULL(d.fecha_baja, '0000-00-00') = '0000-00-00'
+                               ORDER BY d.codresponsable""", (codempresa, *lote)):
+            out[_t(f["codactivo"])].append(_t(f["codresponsable"]))
+    return out
+
+
+def inventario_aecid(p):
+    """
+    con_inventario_aecid: inventario de bienes muebles en buen estado (formato AECID): número, nombre y
+    código, cantidad, estado, valor, fecha de compra, responsables vigentes del detalle y serie. VFP hacía
+    una consulta de responsables por activo; aquí una para todos.
+    """
+    b = Base(p)
+    partes, params = _rangos(p, ("activo",))
+    _fechas(p, "a.fecha_compra", partes, params)
+    if p.codresponsable:
+        partes.append("""AND EXISTS (SELECT 1 FROM acf_activos_det d WHERE d.codempresa = a.codempresa
+                         AND d.codactivo = a.codactivo AND d.codresponsable = %s)""")
+        params.append(p.codresponsable)
+    filas_bd = consulta(f"""SELECT a.* FROM acf_activos a WHERE a.codempresa = %s {' '.join(partes)}
+                            ORDER BY a.codactivo""", (p.codempresa, *params))
+    _sin_datos(filas_bd)
+    resp = _responsables_det(p.codempresa, [_t(a["codactivo"]) for a in filas_bd])
+    cols = [Columna("CANTIDAD", ancho=9, entero=True), Columna("ESTADO", ancho=7, texto=True), Columna("VALOR"),
+            Columna("FECHA COMPRA", ancho=11, texto=True), Columna("RESPONSABLE", ancho=24, texto=True),
+            Columna("SERIE", ancho=18, texto=True)]
+    filas = []
+    for i, a in enumerate(filas_bd, 1):
+        filas.append(Fila(tipo="cuenta", nivel=1, cuenta=str(i), nombre=f"{_t(a['nombre'])} ({_t(a['codactivo'])})",
+                          valores=[float(a["cantidad"] or 0), "B.E.", float(a["valorml"] or 0), _fx(a["fecha_compra"]),
+                                   ", ".join(resp.get(_t(a["codactivo"]), [])), _t(a["serie"])]))
+    filas.append(_total("TOTALES", filas, len(cols), (0, 2), negrita=True))
+    return _cierra(b, "INVENTARIO DE BIENES MUEBLES EN BUEN ESTADO", _periodo_txt(p, "DE COMPRA"), cols, filas,
+                   enc_a=("No.", 6), enc_b=("DESCRIPCIÓN (CÓDIGO)", 46))
+
+
+def inventario_baja_aecid(p):
+    """
+    con_inventario_debaja_aecid: cada unidad del detalle dada de baja (acf_activos_det con fecha de baja),
+    con su valor, responsable, fecha y motivo. VFP rotulaba el estado «B.E.» (buen estado) también en este
+    listado de bajas; aquí dice «BAJA».
+    """
+    b = Base(p)
+    partes, params = _rangos(p, ("activo",))
+    _fechas(p, "a.fecha_compra", partes, params)
+    filas_bd = consulta(f"""
+        SELECT a.codactivo, a.nombre, a.cantidad, a.fecha_compra, a.serie, d.linea, d.valorml AS valor_det,
+               d.fecha_baja AS fecha_baja_det, d.motivo_debaja, d.codresponsable AS resp_det
+          FROM acf_activos a
+          JOIN acf_activos_det d ON d.codempresa = a.codempresa AND d.codactivo = a.codactivo
+               AND IFNULL(d.fecha_baja, '0000-00-00') <> '0000-00-00'
+         WHERE a.codempresa = %s {' '.join(partes)}
+         ORDER BY a.codactivo, d.linea""", (p.codempresa, *params))
+    _sin_datos(filas_bd, "unidades dadas de baja")
+    cols = [Columna("CANTIDAD", ancho=9, entero=True), Columna("ESTADO", ancho=7, texto=True), Columna("VALOR"),
+            Columna("FECHA COMPRA", ancho=11, texto=True), Columna("RESPONSABLE", ancho=18, texto=True),
+            Columna("FECHA BAJA", ancho=11, texto=True), Columna("MOTIVO", ancho=30, texto=True),
+            Columna("SERIE", ancho=18, texto=True)]
+    filas = []
+    for i, a in enumerate(filas_bd, 1):
+        filas.append(Fila(tipo="cuenta", nivel=1, cuenta=str(i), nombre=f"{_t(a['nombre'])} ({_t(a['codactivo'])})",
+                          valores=[float(a["cantidad"] or 0), "BAJA", float(a["valor_det"] or 0), _fx(a["fecha_compra"]),
+                                   _t(a["resp_det"]), _fx(a["fecha_baja_det"]), _t(a["motivo_debaja"]), _t(a["serie"])]))
+    filas.append(_total("TOTALES", filas, len(cols), (2,), negrita=True))
+    return _cierra(b, "INVENTARIO DE BIENES MUEBLES DE BAJA", _periodo_txt(p, "DE COMPRA"), cols, filas,
+                   enc_a=("No.", 6), enc_b=("DESCRIPCIÓN (CÓDIGO)", 46))
+
+
+def ficha_responsabilidad_aecid(p):
+    """con_inventario_ficha_responsa_aecid: unidades del detalle a cargo de un responsable (cantidad y valor por activo)."""
+    b = Base(p)
+    partes, params = _rangos(p, ("activo",))
+    _fechas(p, "d.fecha_compra", partes, params)
+    filas_bd = consulta(f"""
+        SELECT a.codactivo, a.nombre, SUM(d.cantidad) AS cantidad, SUM(d.valorml) AS valorml,
+               MIN(d.fecha_compra) AS fecha_compra, MAX(r.nombre) AS nom_responsable
+          FROM acf_activos a
+          JOIN acf_activos_det d ON d.codempresa = a.codempresa AND d.codactivo = a.codactivo AND d.codresponsable = %s
+          JOIN acf_responsables r ON r.codempresa = d.codempresa AND r.codresponsable = d.codresponsable
+         WHERE a.codempresa = %s {' '.join(partes)}
+         GROUP BY a.codactivo, a.nombre
+         ORDER BY a.codactivo""", (p.codresponsable, p.codempresa, *params))
+    _sin_datos(filas_bd)
+    cols = [Columna("CANTIDAD", ancho=9, entero=True), Columna("VALOR"), Columna("FECHA COMPRA", ancho=11, texto=True)]
+    filas = [_fila_listado(a, [float(a["cantidad"] or 0), float(a["valorml"] or 0), _fx(a["fecha_compra"])], nivel=1)
+             for a in filas_bd]
+    filas.append(_total("TOTALES", filas, len(cols), (0, 1), negrita=True))
+    filas += [Fila(), Fila(tipo="grupo", nombre="Firma del responsable: ______________________________")]
+    return _cierra(b, "FICHA DE RESPONSABILIDAD (AECID)",
+                   f"RESPONSABLE: {_t(filas_bd[0]['nom_responsable'])} ({p.codresponsable}) · {date.today():%d/%m/%Y}",
+                   cols, filas)

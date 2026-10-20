@@ -267,6 +267,23 @@ CATEGORIAS += (
         Reporte("Cálculo de depreciaciones", "Depreciación del mes y acumulada por activo, con la póliza del mes",
                 "bi-graph-down", (("Excel", "acf.con_calculo_dep_xdia_acfijos"),)),
     ), "Activos fijos"),
+    Categoria("acflistados", "Listados de activos", "bi-box-seam", (
+        Reporte("Activos por tipo", "Activos vigentes por tipo de activo (y responsable), con proveedor y factura",
+                "bi-tags", (("Excel", "acf.con_acfactivos_tipos"),)),
+        Reporte("Artículos por responsable", "Activos a cargo de cada responsable, con sus accesorios", "bi-person-badge",
+                (("Excel", "acf.con_articulos_x_responsable"),)),
+        Reporte("No depreciables, de baja y con accesorios", "Listados por situación del activo", "bi-list-check",
+                (("No depreciables", "acf.con_articulos_no_depreciables"), ("Dados de baja", "acf.con_articulos_dados_de_baja"),
+                 ("Con accesorios", "acf.con_articulos_con_accesorios"))),
+    ), "Activos fijos"),
+    Categoria("acfresponsables", "Responsabilidad e inventario", "bi-clipboard-check", (
+        Reporte("Ficha de responsabilidad", "Tarjeta de un responsable con sus activos y línea de firma",
+                "bi-person-vcard", (("Ficha", "acf.con_inventario_tarjeta_responsa"),
+                                    ("Formato AECID", "acf.con_inventario_ficha_responsa_aecid"))),
+        Reporte("Inventario de bienes muebles (AECID)", "Inventario en buen estado o de baja, con responsables y serie",
+                "bi-clipboard-data", (("Buen estado", "acf.con_inventario_aecid"),
+                                      ("De baja", "acf.con_inventario_debaja_aecid"))),
+    ), "Activos fijos"),
 )
 
 _UBICACION = {cmd: (cat, rep, etiqueta) for cat in CATEGORIAS for rep in cat.reportes

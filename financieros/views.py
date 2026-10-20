@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import date
 
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import render
@@ -29,7 +30,8 @@ CAMPOS_EXTRA = ("centro", "centros", "cc_desde", "cc_hasta", "cuenta_desde", "cu
                 "numero_desde", "numero_hasta", "tasa_cambio", "meses_caducado", "serie", "serie_desde", "serie_hasta",
                 "estado_reg", "valor_doc", "proyectar_por", "primer_dia", "mostrar_por", "resolucion",
                 "activo_desde", "activo_hasta", "ubica_desde", "ubica_hasta", "tipoact_desde", "tipoact_hasta",
-                "depto_desde", "depto_hasta", "responsable_desde", "responsable_hasta", "orden_activos")
+                "depto_desde", "depto_hasta", "responsable_desde", "responsable_hasta", "orden_activos",
+                "codresponsable")
 
 
 def _rotula(rep, dim):
@@ -96,7 +98,8 @@ def reporte(request, comando):
         corte = d.get("fecha_fin")                       # cuentas corrientes: el año / mes salen de la fecha
         p = Parametros(
             codempresa=codempresa, sistema=definicion.sistema,
-            anio=d["anio"] if corte is None else corte.year, mes=d["mes"] if corte is None else corte.month,
+            anio=corte.year if corte else d.get("anio") or date.today().year,
+            mes=corte.month if corte else d.get("mes") or date.today().month,
             nombre=d["nombre"], nivel=d.get("nivel"),
             anio2=d.get("anio2"), mes2=d.get("mes2"),
             **{k: d.get(k, v) for k, v in definicion.opciones.items()},

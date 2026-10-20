@@ -36,6 +36,9 @@ class Definicion:
     sistema: str = ""                               # CXC / CXP para los reportes de cuenta corriente
     tipos_cuenta: tuple = ()                        # Cheques: tipos de cuenta (chqdefctas.codtipocta) del selector
     dimension: str = "cc"                           # reportes por centro: cc (menú 22), ci (24), ca (26)
+    fechas_opcionales: bool = False                 # listados (activos fijos): fecha en blanco = sin límite
+    etiqueta_fecha: str = ""                        # «de compra», «de baja»… en la etiqueta de las fechas
+    sin_fechas: bool = False                        # el reporte no pide periodo ni fechas
 
 
 _BG = {"incluir_todas": False, "no_saldo_cero": True, "fecha_hora": True}
@@ -443,4 +446,23 @@ def _acf(comando, titulo, funcion, opciones=None, campos=(), **extra):
 
 _acf("con_calculo_dep_xdia_acfijos", "CÁLCULO DE DEPRECIACIONES", activos.depreciacion,
      {"ocultar_bajas": False, "solo_electronico": False, "fecha_hora": False}, ("filtros_activos",))
-
+_COMPRA = {"usa_fecha_inicial": True, "fechas_opcionales": True, "etiqueta_fecha": "de compra"}
+_acf("con_articulos_x_responsable", "ARTÍCULOS POR RESPONSABLE", activos.por_responsable, campos=("af_responsable",),
+     **_COMPRA)
+_acf("con_inventario_tarjeta_responsa", "FICHA DE RESPONSABILIDAD", activos.ficha_responsabilidad,
+     campos=("responsable_af", "orden_ficha"), sin_fechas=True)
+_acf("con_acfactivos_tipos", "ACTIVOS FIJOS POR TIPO", activos.por_tipo, {"solo_electronico": False},
+     ("af_tipoact", "af_activo", "af_ubica", "af_depto", "af_responsable", "agrupa_tipos"), **_COMPRA)
+_acf("con_articulos_no_depreciables", "ARTÍCULOS NO DEPRECIABLES", activos.no_depreciables, {},
+     ("af_activo", "af_ubica", "af_tipoact", "af_depto", "orden_depto_tipo"), fechas_opcionales=True,
+     etiqueta_fecha="de compra")
+_acf("con_articulos_dados_de_baja", "ARTÍCULOS DADOS DE BAJA", activos.dados_de_baja, campos=("af_activo",),
+     usa_fecha_inicial=True, fechas_opcionales=True, etiqueta_fecha="de baja")
+_acf("con_articulos_con_accesorios", "ARTÍCULOS CON ACCESORIOS", activos.con_accesorios, campos=("af_activo",),
+     **_COMPRA)
+_acf("con_inventario_aecid", "INVENTARIO DE BIENES MUEBLES EN BUEN ESTADO", activos.inventario_aecid,
+     campos=("af_activo", "responsable_af_opc"), **_COMPRA)
+_acf("con_inventario_debaja_aecid", "INVENTARIO DE BIENES MUEBLES DE BAJA", activos.inventario_baja_aecid,
+     campos=("af_activo",), **_COMPRA)
+_acf("con_inventario_ficha_responsa_aecid", "FICHA DE RESPONSABILIDAD (AECID)", activos.ficha_responsabilidad_aecid,
+     campos=("responsable_af", "af_activo"), **_COMPRA)

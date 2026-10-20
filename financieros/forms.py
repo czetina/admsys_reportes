@@ -41,15 +41,25 @@ class ParametrosForm(forms.Form):
         self.fields["anio"].initial = hoy.year
         self.fields["mes"].initial = hoy.month
         self.fields["salida"].initial = definicion.salida
-        if not definicion.usa_periodo:          # cuentas corrientes: fechas en lugar de año / mes
+        if getattr(definicion, "sin_fechas", False):     # p. ej. ficha de responsabilidad: sin periodo ni fechas
+            del self.fields["anio"], self.fields["mes"]
+        elif not definicion.usa_periodo:          # cuentas corrientes: fechas en lugar de año / mes
             del self.fields["anio"], self.fields["mes"]
             fecha = {"class": "form-control", "type": "date"}
+            opcional = getattr(definicion, "fechas_opcionales", False)
+            de = f" {definicion.etiqueta_fecha}" if getattr(definicion, "etiqueta_fecha", "") else ""
             if definicion.usa_fecha_inicial:
                 self.fields["fecha_ini"] = forms.DateField(
-                    label="Fecha inicio", initial=hoy.replace(day=1), widget=forms.DateInput(fecha, format="%Y-%m-%d"))
+                    label=f"Fecha{de} inicial" if opcional else "Fecha inicio", required=not opcional,
+                    initial=None if opcional else hoy.replace(day=1),
+                    help_text="En blanco = sin límite" if opcional else "",
+                    widget=forms.DateInput(fecha, format="%Y-%m-%d"))
             self.fields["fecha_fin"] = forms.DateField(
-                label="Fecha fin" if definicion.usa_fecha_inicial else "Saldos al",
-                initial=hoy, widget=forms.DateInput(fecha, format="%Y-%m-%d"))
+                label=(f"Fecha{de} final" if opcional else "Fecha fin") if definicion.usa_fecha_inicial else
+                ("Al" if opcional else "Saldos al"),
+                required=not opcional, initial=None if opcional and definicion.usa_fecha_inicial else hoy,
+                help_text="En blanco = sin límite" if opcional and definicion.usa_fecha_inicial else "",
+                widget=forms.DateInput(fecha, format="%Y-%m-%d"))
 
         if definicion.periodo2:
             if definicion.periodo2 == "mes_anterior":
@@ -290,17 +300,31 @@ class ParametrosForm(forms.Form):
             self.fields["mostrar_por"] = forms.ChoiceField(
                 label="Mostrar por", initial="directorio", widget=forms.Select(attrs=select),
                 choices=[("directorio", "Directorio"), ("clasificacion", "Clasificación"), ("aca", "Código acaparador")])
-        if "filtros_activos" in campos:
-            texto_a = {"class": "form-control", "placeholder": "Todos"}
-            for clave, etiqueta in (("activo", "Activo"), ("ubica", "Ubicación"), ("tipoact", "Tipo de activo"),
-                                    ("depto", "Departamento"), ("responsable", "Responsable")):
+        # Activos fijos: «filtros_activos» = todos los rangos + orden de la depreciación; o rangos sueltos
+        rangos_af = (("activo", "Activo"), ("ubica", "Ubicación"), ("tipoact", "Tipo de activo"),
+                     ("depto", "Departamento"), ("responsable", "Responsable"))
+        for clave, etiqueta in rangos_af:
+            if "filtros_activos" in campos or f"af_{clave}" in campos:
                 for lado, sufijo in (("desde", "inicial"), ("hasta", "final")):
                     self.fields[f"{clave}_{lado}"] = forms.CharField(
                         label=f"{etiqueta} {sufijo}", required=False, max_length=30,
-                        widget=forms.TextInput(attrs=texto_a))
-            self.fields["orden_activos"] = forms.TypedChoiceField(
-                label="Ordenar por", coerce=int, initial=1, widget=forms.Select(attrs=select),
-                choices=[(1, "Departamento, tipo de activo"), (2, "Tipo de activo, departamento")])
+                        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Todos"}))
+        ordenes_af = {"filtros_activos": [(1, "Departamento, tipo de activo"), (2, "Tipo de activo, departamento")],
+                      "orden_depto_tipo": [(1, "Departamento, tipo de activo"), (2, "Tipo de activo, departamento")],
+                      "orden_ficha": [(1, "Código"), (2, "Nombre")],
+                      "agrupa_tipos": [(1, "Tipo de activo"), (2, "Tipo de activo y responsable")]}
+        for marca, opciones_o in ordenes_af.items():
+            if marca in campos:
+                self.fields["orden_activos"] = forms.TypedChoiceField(
+                    label="Ordenar por", coerce=int, initial=1, widget=forms.Select(attrs=select), choices=opciones_o)
+        if {"responsable_af", "responsable_af_opc"} & set(campos):
+            resp = consulta("SELECT codresponsable, nombre FROM acf_responsables WHERE codempresa = %s "
+                            "AND (fecha_baja IS NULL OR fecha_baja = '0000-00-00') ORDER BY nombre", (codempresa,))
+            obligatorio = "responsable_af" in campos
+            self.fields["codresponsable"] = forms.ChoiceField(
+                label="Responsable", required=obligatorio, widget=forms.Select(attrs=select),
+                choices=([] if obligatorio else [("", "— Todos —")]) +
+                [(r["codresponsable"].strip(), f"{r['nombre'].strip()} ({r['codresponsable'].strip()})") for r in resp])
         if "orden_tipo_serie" in campos:
             self.fields["orden_fac"] = forms.TypedChoiceField(
                 label="Ordenar por", coerce=int, initial=1, widget=forms.Select(attrs=select),
@@ -354,7 +378,8 @@ class ParametrosForm(forms.Form):
                    "numero_desde", "numero_hasta", "tasa_cambio", "meses_caducado", "serie", "serie_desde",
                    "serie_hasta", "estado_reg", "valor_doc", "proyectar_por", "primer_dia", "mostrar_por", "resolucion",
                    "activo_desde", "activo_hasta", "ubica_desde", "ubica_hasta", "tipoact_desde", "tipoact_hasta",
-                   "depto_desde", "depto_hasta", "responsable_desde", "responsable_hasta", "orden_activos")
+                   "depto_desde", "depto_hasta", "responsable_desde", "responsable_hasta", "orden_activos",
+                   "codresponsable")
         return [self[n] for n in nombres if n in self.fields]
 
     @property

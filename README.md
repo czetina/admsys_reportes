@@ -331,15 +331,22 @@ fuente en VFP: `con_dm_conci_cuadratica_sat`, `con_dm_documentos`, `con_dm_pagos
 | comando | Reporte | Función (`activos.py`) |
 |---|---|---|
 | `con_calculo_dep_xdia_acfijos` | Cálculo de depreciaciones al día de corte (hoja DEPTOS) y póliza del mes (hoja POLIZA) | `depreciacion` |
+| `con_acfactivos_tipos` | Activos vigentes por tipo (y responsable), con proveedor, factura y valores | `por_tipo` |
+| `con_articulos_x_responsable` | Activos de cada responsable, con sus accesorios | `por_responsable` |
+| `con_inventario_tarjeta_responsa` / `con_inventario_ficha_responsa_aecid` | Ficha de responsabilidad (por código o nombre) / formato AECID con cantidad y valor del detalle | `ficha_responsabilidad` / `ficha_responsabilidad_aecid` |
+| `con_inventario_aecid` / `con_inventario_debaja_aecid` | Inventario de bienes muebles en buen estado / unidades dadas de baja (acf_activos_det) | `inventario_aecid` / `inventario_baja_aecid` |
+| `con_articulos_no_depreciables` / `con_articulos_dados_de_baja` / `con_articulos_con_accesorios` | Listados por situación del activo | `no_depreciables` / `dados_de_baja` / `con_accesorios` |
 
 `calcula` es el puerto línea por línea de `calculo_depreciacion.prg` (mes parcial inicial y final,
 bajas, año comercial, valor residual y el ajuste contra el mes anterior). Validado: en los 93 activos
 de Servirsa, mes a mes durante toda su vida útil, acumulado = acumulado anterior + depreciado del
 mes, valor actual = valor − acumulado y el acumulado nunca pasa de valor − rescate; la póliza cuadra.
-Falta compararlo contra una corrida de VFP. «Depreciaciones a contabilidad»
-(`con_polizas_dep_acfijos_xdia`) graba pólizas: no se migra (la web es de solo lectura).
-Pendientes: los demás listados del menú 50 (por responsable, ficha de responsabilidad, por tipo, no
-depreciables, de baja, con accesorios e inventarios AECID).
+Falta compararlo contra una corrida de VFP.
+«Depreciaciones a contabilidad» (`con_polizas_dep_acfijos_xdia`) graba pólizas: no se migra (la web es de
+solo lectura). En los listados una fecha en blanco significa «sin límite», como en VFP. Validado (003 y KOW):
+el valor total de los activos es el mismo en todos los listados y en la depreciación (35,080,499.43 en 003).
+Sin datos en Servirsa para validar: tipos con 0 %, bajas (`acf_bajas`), accesorios (`acf_consolidado`) y
+unidades dadas de baja en el detalle.
 
 ## Por qué ahora es rápido
 

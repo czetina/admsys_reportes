@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo_libro }}{% endblock %}
+{% block contenido %}
+<div class="barra-reporte py-2 mb-3">
+  <nav class="migas mb-1 no-imprimir"><a href="{% url 'inicio' %}"><i class="bi bi-house me-1"></i>Reportes financieros</a> <span class="text-secondary mx-1">/</span> <a href="{% url 'reporte' comando %}">{{ titulo }}</a></nav>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge rounded-pill text-bg-success-subtle text-success-emphasis border border-success-subtle no-imprimir"><i class="bi bi-lightning-charge me-1"></i>{{ segundos|floatformat:2 }} s</span>
+      <span class="small text-secondary no-imprimir">{{ total_filas }} filas{% if hojas|length > 1 %} · {{ hojas|length }} hojas{% endif %}</span>
+    </div>
+    <div class="acciones d-flex flex-wrap gap-2">
+      {% if niveles|length > 1 %}
+      <div class="btn-group btn-group-sm" role="group" aria-label="Nivel">
+        <span class="btn btn-outline-secondary disabled">Nivel</span>
+        {% for n in niveles %}<button type="button" class="btn btn-outline-secondary" data-nivel-btn="{{ n }}">{{ n }}</button>{% endfor %}
+        <button type="button" class="btn btn-outline-secondary" data-nivel-btn="0">Todo</button>
+      </div>
+      {% endif %}
+      <button type="button" class="btn btn-sm btn-success" data-exportar="form-exportar"><i class="bi bi-file-earmark-excel me-1"></i>Excel</button>
+      <button type="button" class="btn btn-sm btn-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>
+    </div>
+  </div>
+</div>
+
+{% if hojas|length > 1 %}
+<ul class="nav nav-pills hojas-tabs mb-3 no-imprimir flex-nowrap overflow-auto" role="tablist">
+  {% for h in hojas %}
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if forloop.first %}active{% endif %} text-nowrap" data-bs-toggle="pill" data-bs-target="#{{ h.id }}" type="button" role="tab">
+      {% if forloop.first %}<i class="bi bi-grid-3x3-gap me-1"></i>{% endif %}{{ h.nombre }}
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<div class="tab-content">
+{% for h in hojas %}
+<div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="{{ h.id }}" role="tabpanel">
+  <div class="card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap justify-content-between gap-3 mb-3">
+        <div>
+          <div class="text-secondary small">{{ h.rep.empresa.razonsocial }} · NIT {{ h.rep.empresa.nit }}</div>
+          <h2 class="h4 fw-bold mb-1">{{ h.rep.titulo }}</h2>
+          <div class="text-secondary">{{ h.rep.subtitulo }} · {{ h.rep.leyenda_moneda }}</div>
+        </div>
+        <div class="small text-secondary text-end">
+          {% if h.rep.fecha_hora %}<div><i class="bi bi-clock me-1"></i>{{ h.rep.fecha_hora|date:"d/m/Y H:i:s" }}</div>{% endif %}
+          {% if h.rep.folio %}<div title="El Excel numera cada página desde este folio"><i class="bi bi-journal-bookmark me-1"></i>Folio inicial: {{ h.rep.folio }}</div>{% endif %}
+        </div>
+      </div>
+
+      {% if h.recortada %}
+      <div class="alert alert-warning d-flex align-items-center gap-2 py-2 small no-imprimir">
+        <i class="bi bi-info-circle"></i>
+        En pantalla se muestran las primeras {{ h.filas|length }} filas; faltan {{ h.recortada }}. El Excel incluye todo.
+      </div>
+      {% endif %}
+      <div class="tabla-wrap">
+        <table class="table table-hover tabla-reporte mb-0">
+          <thead>
+            {% if h.grupos %}
+            <tr class="fila-grupos">
+              <th colspan="2"></th>
+              {% for texto, n in h.grupos %}<th colspan="{{ n }}" class="text-center">{{ texto }}</th>{% endfor %}
+            </tr>
+            {% endif %}
+            <tr>
+              <th style="width:1%">{{ h.encabezado_a|capfirst }}</th><th>{{ h.encabezado_b|capfirst }}</th>
+              {% for c in h.columnas %}<th class="{% if c.texto %}text-start{% else %}text-end{% endif %}">{{ c.titulo }}{% if c.subtitulo %}
+{{ c.subtitulo }}{% endif %}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in h.filas %}
+              {% if f.blanco %}
+              <tr class="blanco"><td colspan="{{ h.columnas|length|add:2 }}"></td></tr>
+              {% else %}
+              <tr class="{% if f.alerta %}alerta {% endif %}{% if f.negrita %}fuerte{% endif %}{% if f.total %} total{% endif %}{% if f.grupo %} grupo{% endif %}{% if f.nivel == 1 %} nivel-1{% endif %}"{% if not f.total and not f.grupo %} data-nivel="{{ f.nivel }}"{% endif %}>
+                <td class="cod">{% if f.vinculo %}<a href="#" data-ir-hoja="{{ f.vinculo }}">{{ f.cuenta }}</a>{% else %}{{ f.cuenta }}{% endif %}</td>
+                {% if f.grupo and f.vacia %}
+                <td colspan="{{ h.columnas|length|add:1 }}" style="padding-left:1rem">{{ f.nombre }}</td>
+                {% else %}
+                <td style="padding-left:{{ f.nivel|default:1 }}rem">{{ f.nombre }}</td>
+                {% endif %}
+                {% for texto, negrita, negativo, es_texto in f.celdas %}{% if not f.vacia or not f.grupo %}<td class="{% if es_texto %}txt{% else %}num{% endif %}{% if negrita %} fw-semibold{% endif %}{% if negativo %} neg{% endif %}">{{ texto }}</td>{% endif %}{% endfor %}
+              </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<form id="form-exportar" method="post" action="{% url 'reporte' comando %}" class="d-none">
+  {% csrf_token %}
+  {% for k, v in datos_post %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+</form>
+<script type="application/json" id="nivel-inicial">{{ nivel_inicial }}</script>
+{% endblock %}

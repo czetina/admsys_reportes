@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block titulo %}Reportes financieros{% endblock %}
+{% block contenido %}
+{% if categorias %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Reportes financieros</h1>
+    <p class="text-secondary mb-0">{{ total }} reporte{{ total|pluralize }} en {{ categorias|length }} categoría{{ categorias|length|pluralize }}.</p>
+  </div>
+  <div class="input-group buscador-menu">
+    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+    <input type="search" class="form-control" id="buscar-reporte" placeholder="Buscar: balance, diario, centro…" autocomplete="off">
+  </div>
+</div>
+
+{% if recientes %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+  <span class="small text-secondary me-1">Recientes</span>
+  {% for r in recientes %}
+  <a class="chip-reciente" href="{% url 'reporte' r.comando %}?anio={{ r.anio }}&mes={{ r.mes }}">
+    <i class="bi bi-clock-history"></i>{{ r.nombre }}{% if r.variante %} · {{ r.variante|lower }}{% endif %}
+    <span class="text-secondary">{{ r.mes|stringformat:"02d" }}/{{ r.anio }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="menu-reportes">
+  <nav class="menu-categorias{% if modulos > 1 %} con-modulos{% endif %}" aria-label="Categorías">
+    {% regroup categorias by modulo as grupos %}
+    {% for g in grupos %}
+    <div class="modulo-grupo{% if forloop.first %} abierto{% endif %}" data-modulo>
+      {% if modulos > 1 %}
+      <button type="button" class="modulo-btn" data-modulo-btn aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}">
+        <span class="text-truncate">{{ g.grouper }}</span>
+        <i class="bi bi-chevron-down modulo-flecha"></i>
+      </button>
+      {% endif %}
+      <div class="modulo-cats">
+        {% for c in g.list %}
+        <button type="button" class="categoria-btn{% if forloop.parentloop.first and forloop.first %} activa{% endif %}" data-categoria="{{ c.clave }}">
+          <i class="bi {{ c.icono }}"></i><span class="text-truncate">{{ c.nombre }}</span>
+          <span class="categoria-cuenta">{{ c.reportes|length }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </nav>
+
+  <div class="card menu-lista">
+    <div class="card-body p-2 p-md-3">
+      {% for c in categorias %}
+      <section data-panel="{{ c.clave }}"{% if not forloop.first %} hidden{% endif %}>
+        <div class="panel-titulo"><i class="bi {{ c.icono }} me-2"></i>{% if modulos > 1 %}<span class="text-secondary fw-normal">{{ c.modulo }} · </span>{% endif %}{{ c.nombre }}</div>
+        {% for r in c.reportes %}
+        {% with principal=r.variantes.0 %}
+        <div class="reporte-fila" data-buscar="{{ r.nombre|lower }} {{ r.descripcion|lower }} {{ c.modulo|lower }} {% for v in r.variantes %}{{ v.etiqueta|lower }} {{ v.comando }} {% endfor %}{{ c.nombre|lower }}">
+          <a class="reporte-principal" href="{% url 'reporte' principal.comando %}" title="{{ principal.comando }}">
+            <span class="reporte-icono"><i class="bi {{ r.icono }}"></i></span>
+            <span class="min-w-0">
+              <span class="d-block fw-semibold text-body">{{ r.nombre }}</span>
+              {% if r.descripcion %}<span class="d-block small text-secondary">{{ r.descripcion }}</span>{% endif %}
+              <span class="d-none categoria-en-busqueda small text-primary">{% if modulos > 1 %}{{ c.modulo }} · {% endif %}{{ c.nombre }}</span>
+            </span>
+          </a>
+          <div class="reporte-variantes">
+            {% for v in r.variantes %}
+            <a class="variante{% if forloop.first %} principal{% endif %}" href="{% url 'reporte' v.comando %}" title="{{ v.comando }}">{{ v.etiqueta }}</a>
+            {% endfor %}
+          </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+      </section>
+      {% endfor %}
+      <div id="sin-resultados" class="text-center text-secondary py-5" hidden>
+        <i class="bi bi-search fs-3 d-block mb-2"></i>Ningún reporte coincide con la búsqueda.
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card"><div class="card-body text-center py-5 text-secondary">
+  <i class="bi bi-lock fs-2 d-block mb-2"></i>No tiene reportes financieros asignados en esta empresa.
+</div></div>
+{% endif %}
+{% endblock %}

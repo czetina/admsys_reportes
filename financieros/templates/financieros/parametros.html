@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<nav class="migas mb-2"><a href="{% url 'inicio' %}"><i class="bi bi-house me-1"></i>Reportes</a>
+  {% if categoria %}<span class="text-secondary mx-1">/</span> <a href="{% url 'inicio' %}#{{ categoria.clave }}">{{ categoria.nombre }}</a>{% endif %}
+  <span class="text-secondary mx-1">/</span> <span class="text-secondary">{{ titulo }}</span></nav>
+<div class="encabezado-pagina d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ titulo }}{% if variante %} <span class="text-secondary fw-normal">· {{ variante|lower }}</span>{% endif %}</h1>
+    <p class="text-secondary mb-0" title="{{ comando }}">{{ descripcion|default:comando }}</p>
+  </div>
+  {% if variantes %}
+  <div class="variantes-reporte d-flex flex-wrap gap-2" aria-label="Variantes">
+    {% for v in variantes %}<a class="variante{% if v.actual %} actual{% endif %}" href="{% url 'reporte' v.comando %}"{% if v.actual %} aria-current="page"{% endif %}>{{ v.etiqueta }}</a>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<form method="post" id="form-reporte" action="{% url 'reporte' comando %}" data-url-buscar="{% url 'buscar' 'TIPO' %}" novalidate>
+  {% csrf_token %}
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body p-4">
+          <div class="seccion-titulo"><i class="bi bi-file-earmark-text me-1"></i>Reporte</div>
+          <div class="mb-4">
+            <label class="form-label" for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
+            {{ form.nombre }}
+          </div>
+
+          <div class="seccion-titulo"><i class="bi bi-calendar3 me-1"></i>{% if form.anio2 %}Periodo actual{% else %}Periodo{% endif %}</div>
+          <div class="row g-3 mb-4">
+            {% if form.fecha_fin %}
+            {% if form.fecha_ini %}<div class="col-sm-4"><label class="form-label" for="{{ form.fecha_ini.id_for_label }}">{{ form.fecha_ini.label }}</label>{{ form.fecha_ini }}</div>{% endif %}
+            <div class="col-sm-4"><label class="form-label" for="{{ form.fecha_fin.id_for_label }}">{{ form.fecha_fin.label }}</label>{{ form.fecha_fin }}</div>
+            {% else %}
+            <div class="col-sm-4"><label class="form-label" for="{{ form.anio.id_for_label }}">{{ form.anio.label }}</label>{{ form.anio }}</div>
+            <div class="col-sm-5"><label class="form-label" for="{{ form.mes.id_for_label }}">{{ form.mes.label }}</label>{{ form.mes }}</div>
+            {% endif %}
+            {% if form.nivel %}
+            <div class="col-sm-3">
+              <label class="form-label" for="{{ form.nivel.id_for_label }}">{{ form.nivel.label }}</label>{{ form.nivel }}
+            </div>
+            {% endif %}
+          </div>
+
+          {% if form.anio2 %}
+          <div class="seccion-titulo"><i class="bi bi-arrow-left-right me-1"></i>Periodo comparativo</div>
+          <div class="row g-3 mb-4">
+            <div class="col-sm-4"><label class="form-label" for="{{ form.anio2.id_for_label }}">{{ form.anio2.label }}</label>{{ form.anio2 }}</div>
+            <div class="col-sm-5"><label class="form-label" for="{{ form.mes2.id_for_label }}">{{ form.mes2.label }}</label>{{ form.mes2 }}</div>
+          </div>
+          {% endif %}
+
+          {% if form.campos_centro %}
+          <div class="seccion-titulo"><i class="bi bi-funnel me-1"></i>{{ form.titulo_filtros }}</div>
+          <div class="row g-3 mb-4">
+            {% for campo in form.campos_centro %}
+            <div class="{% if campo.name == 'meses' %}col-sm-4{% else %}col-sm-6{% endif %}">
+              <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% for campo in form.campos_lista %}
+          <div data-lista>
+            <div class="seccion-titulo d-flex align-items-center justify-content-between">
+              <span><i class="bi {% if campo.name == 'centros' %}bi-diagram-3{% else %}bi-tags{% endif %} me-1"></i>{{ campo.label }}</span>
+              <span class="text-secondary fw-normal text-transform-none" data-lista-cuenta></span>
+            </div>
+            <div class="input-group input-group-sm mb-2">
+              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+              <input type="search" class="form-control" data-lista-filtro placeholder="Filtrar…">
+              <button type="button" class="btn btn-outline-secondary" data-lista-todos>Todos</button>
+              <button type="button" class="btn btn-outline-secondary" data-lista-ninguno>Ninguno</button>
+            </div>
+            <div class="lista-centros border rounded-3 p-2 mb-1">
+              {% for c in campo %}
+              <div class="form-check centro-item">{{ c.tag }} <label class="form-check-label small" for="{{ c.id_for_label }}">{{ c.choice_label }}</label></div>
+              {% endfor %}
+            </div>
+            <p class="small text-secondary mb-4">{{ campo.help_text }}</p>
+          </div>
+          {% endfor %}
+
+          {% if form.campos_opciones %}
+          <div class="seccion-titulo"><i class="bi bi-sliders me-1"></i>Opciones</div>
+          <div class="row g-2">
+            {% for campo in form.campos_opciones %}
+            <div class="col-md-6">
+              <div class="form-check form-switch">
+                {{ campo }}
+                <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-body p-4">
+          <div class="seccion-titulo"><i class="bi bi-box-arrow-up-right me-1"></i>Salida</div>
+          <div class="d-grid gap-2 mb-4">
+            {% for radio in form.salida %}
+            <input type="radio" class="btn-check" name="{{ radio.data.name }}" id="salida-{{ radio.data.value }}" value="{{ radio.data.value }}" {% if radio.data.selected %}checked{% endif %}>
+            <label class="salida-opcion" for="salida-{{ radio.data.value }}">
+              {% if radio.data.value == "excel" %}
+                <i class="bi bi-file-earmark-excel text-success"></i>
+                <span><span class="fw-semibold d-block">Excel</span><span class="small text-secondary">Descarga .xlsx con fórmulas y grupos</span></span>
+              {% else %}
+                <i class="bi bi-display text-primary"></i>
+                <span><span class="fw-semibold d-block">Pantalla</span><span class="small text-secondary">Vista previa imprimible / PDF</span></span>
+              {% endif %}
+            </label>
+            {% endfor %}
+          </div>
+          <button class="btn btn-primary w-100 py-2 fw-semibold"><i class="bi bi-play-fill me-1"></i>Generar reporte</button>
+          <a href="{% url 'inicio' %}" class="btn btn-link w-100 text-secondary mt-1">Cancelar</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% if error %}{{ error|json_script:"error-form" }}{% endif %}
+{% endblock %}

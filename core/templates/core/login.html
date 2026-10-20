@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block titulo %}Registro de ingreso{% endblock %}
+{% block navbar %}{% endblock %}
+{% block cuerpo %}
+<div class="login-fondo d-flex align-items-center justify-content-center p-3">
+  <div class="card login-card">
+    <div class="card-body p-4 p-sm-5">
+      <div class="text-center mb-4">
+        <span class="marca-icono mb-3"><i class="bi bi-bar-chart-line-fill"></i></span>
+        <h1 class="h4 fw-bold mb-1">Registro de ingreso</h1>
+        <p class="text-secondary small mb-0">Reportes financieros · ADMSys</p>
+      </div>
+
+      {% if not pendiente %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="form-floating mb-3">
+          <input type="text" class="form-control" id="usuario" name="usuario" placeholder="Usuario" autocomplete="username" autofocus required>
+          <label for="usuario"><i class="bi bi-person me-1"></i>Usuario</label>
+        </div>
+        <div class="input-group mb-2">
+          <div class="form-floating">
+            <input type="password" class="form-control" id="clave" name="clave" placeholder="Contraseña" autocomplete="current-password" required>
+            <label for="clave"><i class="bi bi-lock me-1"></i>Contraseña</label>
+          </div>
+          <button class="btn btn-outline-secondary" type="button" id="ver-clave" title="Mostrar contraseña"><i class="bi bi-eye"></i></button>
+        </div>
+        <p class="small text-secondary mb-4"><i class="bi bi-info-circle me-1"></i>La contraseña es sensible a mayúsculas y minúsculas.</p>
+        <button class="btn btn-primary w-100 py-2 fw-semibold">Ingresar <i class="bi bi-arrow-right ms-1"></i></button>
+      </form>
+      {% else %}
+      <form method="post">
+        {% csrf_token %}
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="small text-secondary">Usuario <span class="fw-semibold text-body">{{ pendiente.coduser }}</span></div>
+          <a href="{% url 'cambiar_empresa' %}" class="small">Cambiar usuario</a>
+        </div>
+        <div class="seccion-titulo">Seleccione la empresa</div>
+        <div class="lista-empresas d-grid gap-1 mb-3">
+          {% for e in pendiente.empresas %}
+          <input type="radio" class="btn-check" name="empresa" id="emp-{{ forloop.counter }}" value="{{ e.codempresa }}" {% if forloop.first %}checked{% endif %} {% if e.clave_vencida %}disabled{% endif %}>
+          <label class="empresa-opcion d-flex align-items-center gap-2" for="emp-{{ forloop.counter }}" title="{{ e.razonsocial }}">
+            <span class="empresa-codigo">{{ e.codempresa }}</span>
+            <span class="small flex-grow-1 text-truncate">{{ e.razonsocial }}</span>
+            {% if e.clave_vencida %}<span class="badge text-bg-warning">Clave vencida</span>{% endif %}
+          </label>
+          {% endfor %}
+        </div>
+        <button class="btn btn-primary w-100 py-2 fw-semibold">Ingresar <i class="bi bi-arrow-right ms-1"></i></button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const ver = document.getElementById("ver-clave");
+  if (ver) ver.addEventListener("click", () => {
+    const c = document.getElementById("clave");
+    c.type = c.type === "password" ? "text" : "password";
+    ver.innerHTML = c.type === "password" ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+  });
+</script>
+{% endblock %}

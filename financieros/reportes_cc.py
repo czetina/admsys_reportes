@@ -255,7 +255,7 @@ def balance_saldos_por_centro(p):
     return rep
 
 
-def estado_resultados_vs_presupuesto_centro(p):
+def estado_resultados_vs_presupuesto_centro(p, titulo="EJECUCION PRESUPUESTARIA (E.R.) POR CENTRO DE COSTO"):
     """con_presupuesto_cc_er_xls: ejecución presupuestaria (E.R.) por centros seleccionados."""
     r = _ResultadosCC(p)
     c = r.corte
@@ -293,4 +293,28 @@ def estado_resultados_vs_presupuesto_centro(p):
     sub = c.leyenda(p.acumulado)
     if p.centros:
         sub += " · Centro(s): " + ", ".join(p.centros)
-    return r.reporte("EJECUCION PRESUPUESTARIA (E.R.) POR CENTRO DE COSTO", sub, columnas, filas)
+    return r.reporte(titulo, sub, columnas, filas)
+
+
+def estado_resultados_vs_presupuesto(p):
+    """con_presupuesto_er_xls (menú 40): el mismo cálculo con el presupuesto de toda la empresa."""
+    p.centros = []
+    return estado_resultados_vs_presupuesto_centro(p, "EJECUCION PRESUPUESTARIA - ESTADO DE RESULTADOS")
+
+
+def presupuesto_general(p):
+    """con_presupuesto (menú 40): presupuesto de cada cuenta de resultados, mes a mes hasta el corte."""
+    r = _ResultadosCC(p)
+    c = r.corte
+    pres = ctx.presupuesto(r.emp.codempresa, c.periodo.codperiodo)
+    meses = meses_entre(c.periodo.fecini, c.fecha)
+    n_mes = len(meses)
+    prefijos = prefijos_orden(ORDEN_ER, r.nom)
+    valores = {cta: [None] + mensual[:n_mes] for cta, mensual in pres.items()
+               if cta[: r.logn] in prefijos and any(mensual[:n_mes])}
+    _sin_datos(valores)
+    columnas = ([Columna("PRESUPUESTO", "TOTAL", ("suma", 1, n_mes))]
+                + [Columna(f"({m // 100}-{m % 100:02d})", "MENSUAL") for m in meses])
+    lineas = selecciona(r.nomenclatura(), ORDEN_ER, r.nom, set(valores))
+    filas = arma_er(lineas, r.nom, r.nivel, columnas, lambda cta: valores.get(cta.codigo), r.signo_resultado)
+    return r.reporte("PRESUPUESTO PERIODO", c.leyenda(True), columnas, filas)

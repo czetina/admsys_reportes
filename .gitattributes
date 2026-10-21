@@ -1,0 +1,7 @@
+# Lo marcado export-ignore no entra al paquete de producción (deploy/empaquetar.py usa git archive)
+.gitattributes export-ignore
+.gitignore export-ignore
+.env.example export-ignore
+README.md export-ignore
+deploy/empaquetar.py export-ignore
+deploy/usuario_solo_lectura.sql export-ignore

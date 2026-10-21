@@ -26,7 +26,7 @@ class Modulo:
 
 
 MODULOS = (
-    Modulo("CONTA", "CNT", ("20", "22", "24", "26", "30", "35"), "", "Contabilidad"),
+    Modulo("CONTA", "CNT", ("20", "22", "24", "26", "30", "35", "40"), "", "Contabilidad"),
     Modulo("CTAXC", "CXC", ("50", "54", "60"), "cxc.", "Cuentas por cobrar"),
     Modulo("CTAXP", "CXP", ("50", "54", "60"), "cxp.", "Cuentas por pagar"),
     Modulo("IVA", "IVA", ("50", "52", "55"), "iva.", "Auxiliares de IVA"),

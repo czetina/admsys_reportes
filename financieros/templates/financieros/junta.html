@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block titulo %}Paquete de la junta directiva{% endblock %}
+{% block contenido %}
+<nav class="migas mb-2"><a href="{% url 'inicio' %}"><i class="bi bi-house me-1"></i>Reportes</a>
+  <span class="text-secondary mx-1">/</span> <span class="text-secondary">Junta directiva</span></nav>
+<div class="encabezado-pagina mb-4">
+  <h1 class="h3 mb-1">Paquete de la junta directiva</h1>
+  <p class="text-secondary mb-0">Los reportes del cierre en un solo .zip, cada uno con sus parámetros habituales</p>
+</div>
+
+<form method="post" id="form-reporte" action="{% url 'junta' %}" novalidate>
+  {% csrf_token %}
+  <input type="radio" name="salida" value="excel" checked hidden>
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body p-4">
+          <div class="seccion-titulo"><i class="bi bi-calendar3 me-1"></i>Cierre</div>
+          <div class="row g-3 mb-4">
+            <div class="col-sm-4"><label class="form-label" for="{{ form.anio.id_for_label }}">{{ form.anio.label }}</label>{{ form.anio }}</div>
+            <div class="col-sm-5"><label class="form-label" for="{{ form.mes.id_for_label }}">{{ form.mes.label }}</label>{{ form.mes }}</div>
+          </div>
+
+          <div class="seccion-titulo"><i class="bi bi-files me-1"></i>Reportes incluidos</div>
+          <ul class="list-group list-group-flush">
+            {% for r in reportes %}
+            <li class="list-group-item px-0 d-flex align-items-center gap-2{% if not r.acceso %} text-secondary{% endif %}">
+              {% if r.acceso %}<i class="bi bi-file-earmark-excel text-success"></i>{% else %}<i class="bi bi-lock"></i>{% endif %}
+              <span class="flex-grow-1">{{ r.nombre }}</span>
+              {% if r.acceso %}<a class="small" href="{% url 'reporte' r.comando %}">Ver parámetros</a>{% else %}<span class="small">Sin acceso</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          <p class="small text-secondary mt-3 mb-0">Los comparativos se hacen contra el mismo mes del año anterior; la integración de saldos, al último día del mes.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-body p-4">
+          <div class="seccion-titulo"><i class="bi bi-box-arrow-up-right me-1"></i>Salida</div>
+          <div class="salida-opcion mb-4">
+            <i class="bi bi-file-earmark-zip text-warning"></i>
+            <span><span class="fw-semibold d-block">.zip</span><span class="small text-secondary">Un Excel por reporte</span></span>
+          </div>
+          <button class="btn btn-primary w-100 py-2 fw-semibold"><i class="bi bi-download me-1"></i>Generar paquete</button>
+          <a href="{% url 'inicio' %}" class="btn btn-link w-100 text-secondary mt-1">Cancelar</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% if error %}{{ error|json_script:"error-form" }}{% endif %}
+{% endblock %}

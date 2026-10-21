@@ -12,6 +12,20 @@ MESES = [(1, "Enero"), (2, "Febrero"), (3, "Marzo"), (4, "Abril"), (5, "Mayo"), 
          (7, "Julio"), (8, "Agosto"), (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre")]
 
 
+class JuntaForm(forms.Form):
+    """Paquete de la junta directiva: solo el cierre; cada reporte usa sus valores iniciales."""
+    anio = forms.IntegerField(label="Año", min_value=1990, max_value=2100,
+                              widget=forms.NumberInput(attrs={"class": "form-control"}))
+    mes = forms.TypedChoiceField(label="Mes", choices=MESES, coerce=int,
+                                 widget=forms.Select(attrs={"class": "form-select"}))
+    salida = forms.CharField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        hoy = date.today()
+        self.fields["anio"].initial, self.fields["mes"].initial = mes_anterior(hoy.year, hoy.month)
+
+
 class ParametrosForm(forms.Form):
     nombre = forms.CharField(label="Nombre del reporte", max_length=120,
                              widget=forms.TextInput(attrs={"class": "form-control"}))

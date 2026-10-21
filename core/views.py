@@ -58,6 +58,7 @@ def inicio(request):
     categorias = catalogo.menu_usuario(menu.opciones_todas(request.usuario), REPORTES)
     permitidos = {v["comando"] for cat in categorias for rep in cat["reportes"] for v in rep["variantes"]}
     recientes = [r for r in request.session.get(RECIENTES, []) if r["comando"] in permitidos]
-    return render(request, "core/inicio.html", {"categorias": categorias, "recientes": recientes,
+    junta = any(c in permitidos for c, _ in catalogo.REPORTES_JUNTA)
+    return render(request, "core/inicio.html", {"categorias": categorias, "recientes": recientes, "junta": junta,
                                                 "total": sum(len(c["reportes"]) for c in categorias),
                                                 "modulos": len({c["modulo"] for c in categorias})})

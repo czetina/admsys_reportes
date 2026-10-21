@@ -34,7 +34,24 @@ CAMPOS_EXTRA = ("centro", "centros", "cc_desde", "cc_hasta", "cuenta_desde", "cu
                 "codresponsable")
 
 
-def _rotula(rep, dim):
+def arma_parametros(d, definicion, codempresa, coduser):
+    """Parametros del cálculo a partir de los datos ya validados de ParametrosForm."""
+    corte = d.get("fecha_fin")                       # cuentas corrientes: el año / mes salen de la fecha
+    p = Parametros(
+        codempresa=codempresa, sistema=definicion.sistema,
+        anio=corte.year if corte else d.get("anio") or date.today().year,
+        mes=corte.month if corte else d.get("mes") or date.today().month,
+        nombre=d["nombre"], nivel=d.get("nivel"),
+        anio2=d.get("anio2"), mes2=d.get("mes2"),
+        **{k: d.get(k, v) for k, v in definicion.opciones.items()},
+        **{k: d[k] for k in CAMPOS_EXTRA if d.get(k) not in (None, "")},
+    )
+    p.coduser = coduser
+    p.dim = definicion.dimension
+    return p
+
+
+def rotula(rep, dim):
     """Reportes por centro de integración / actividad: los títulos dicen C.I. / C.A. en vez de C.C."""
     if dim == "cc" or isinstance(rep, ArchivoTexto):
         return
@@ -95,25 +112,14 @@ def reporte(request, comando):
     error = None
     if form.is_valid():
         d = form.cleaned_data
-        corte = d.get("fecha_fin")                       # cuentas corrientes: el año / mes salen de la fecha
-        p = Parametros(
-            codempresa=codempresa, sistema=definicion.sistema,
-            anio=corte.year if corte else d.get("anio") or date.today().year,
-            mes=corte.month if corte else d.get("mes") or date.today().month,
-            nombre=d["nombre"], nivel=d.get("nivel"),
-            anio2=d.get("anio2"), mes2=d.get("mes2"),
-            **{k: d.get(k, v) for k, v in definicion.opciones.items()},
-            **{k: d[k] for k in CAMPOS_EXTRA if d.get(k) not in (None, "")},
-        )
-        p.coduser = request.usuario["coduser"]
-        p.dim = definicion.dimension
+        p = arma_parametros(d, definicion, codempresa, request.usuario["coduser"])
         inicio = time.perf_counter()
         try:
             rep = definicion.funcion(p)
         except ErrorReporte as e:
             error = ctx.rotula(str(e), p.dim)
         else:
-            _rotula(rep, p.dim)
+            rotula(rep, p.dim)
             calculo = time.perf_counter() - inicio
             _registra_reciente(request, comando, contexto, p)
             if p.folio and getattr(rep, "folio", None) == 0:     # libros foliados (Crystal)

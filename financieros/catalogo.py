@@ -78,7 +78,11 @@ CATEGORIAS = (
                 "bi-journals", (("Movimiento", "con_mov_centro_actividad"), ("Mayor", "con_dmg_ca"))),
     )),
     Categoria("presupuesto", "Presupuesto", "bi-bullseye", (
-        Reporte("Resultados contra presupuesto", "Estado de resultados de los centros elegidos frente al presupuesto",
+        Reporte("Presupuesto general", "Presupuesto de cada cuenta, mes a mes hasta el corte", "bi-calendar3",
+                (("Excel", "con_presupuesto"),)),
+        Reporte("Ejecución presupuestaria (E.R.)", "Estado de resultados de la empresa frente al presupuesto, del mes y acumulado",
+                "bi-bullseye", (("Excel", "con_presupuesto_er_xls"),)),
+        Reporte("Resultados contra presupuesto por centro", "Estado de resultados de los centros elegidos frente al presupuesto",
                 "bi-bullseye", (("Excel", "con_presupuesto_cc_er_xls"),)),
         Reporte("Ejecución presupuestaria", "Por centro de costo, con hoja de resumen e ISR", "bi-pie-chart",
                 (("Por centro", "con_presupuesto_cc_xls"), ("Acumulado", "con_presupuesto_cc_cons_xls"))),
@@ -328,3 +332,11 @@ def hermanas(comando, permitidos):
         return None, []
     _, rep, _ = lugar
     return rep, [{"etiqueta": e, "comando": c, "actual": c == comando} for e, c in rep.variantes if c in permitidos]
+
+# Paquete de la junta directiva (financieros/junta.py): (comando, nombre corto), en orden
+REPORTES_JUNTA = (
+    ("con_presupuesto_er_xls", "Ejecución presupuestaria"),
+    ("cxc.con_ctacte_integracion", "Cuentas por cobrar"),
+    ("con_bg_comparativo_periodo_xls", "Balance general comparativo"),
+    ("con_er_comparativo_periodo_xls", "Estado de resultados comparativo"),
+)

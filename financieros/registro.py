@@ -98,6 +98,10 @@ REPORTES = {
     "con_presupuesto_cc_cons_xls": Definicion("CONSOLIDADO DE EJECUCION PRESUPUESTARIA POR CENTRO DE COSTO",
                                               presupuesto.presupuesto_consolidado, {"acumulado": True},
                                               campos=("centros",)),
+    # ---------------------------------------------- 40 Presupuesto
+    "con_presupuesto": Definicion("PRESUPUESTO PERIODO", cc.presupuesto_general),
+    "con_presupuesto_er_xls": Definicion("EJECUCION PRESUPUESTARIA - ESTADO DE RESULTADOS",
+                                         cc.estado_resultados_vs_presupuesto, {"acumulado": True}),
     "con_mov_centro_costo": Definicion("MOVIMIENTO POR CENTRO DE COSTO", libros.movimiento_por_centro,
                                        {"fecha_hora": True}, salida="pantalla",
                                        campos=("centro_rango", "cuenta_rango", "meses"), usa_nivel=False,

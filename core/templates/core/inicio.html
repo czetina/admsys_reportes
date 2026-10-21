@@ -7,9 +7,14 @@
     <h1 class="h3 mb-1">Reportes financieros</h1>
     <p class="text-secondary mb-0">{{ total }} reporte{{ total|pluralize }} en {{ categorias|length }} categoría{{ categorias|length|pluralize }}.</p>
   </div>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+  {% if junta %}
+  <a class="btn btn-outline-primary" href="{% url 'junta' %}"><i class="bi bi-file-earmark-zip me-1"></i>Paquete junta directiva</a>
+  {% endif %}
   <div class="input-group buscador-menu">
     <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
     <input type="search" class="form-control" id="buscar-reporte" placeholder="Buscar: balance, diario, centro…" autocomplete="off">
+  </div>
   </div>
 </div>
 

@@ -5,7 +5,7 @@ Cada función recibe Parametros y devuelve un modelo.Reporte. Todas hacen UNA so
 consulta de movimientos (saldos.Movimientos) y calculan el resto en memoria.
 """
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from . import contexto as ctx
@@ -309,14 +309,25 @@ def balance_comparativo_mes_anterior(p):
     return b.reporte("BALANCE GENERAL COMPARATIVO MES ANTERIOR", c.leyenda(True), columnas, filas)
 
 
+def _actual_y_anterior(p):
+    """Contra otro periodo: el corte más reciente es el actual, sin importar en qué casilla se
+    pidió. Las columnas salen como en VFP: anterior, actual, variación = actual - anterior."""
+    mes2 = p.mes2 or p.mes
+    if p.anio2 and (p.anio2, mes2) > (p.anio, p.mes):
+        return replace(p, anio=p.anio2, mes=mes2, anio2=p.anio, mes2=p.mes)
+    return p
+
+
 def balance_comparativo_periodo(p):
-    """con_bg_comparativo_periodo_xls: periodo vs. periodo comparativo (por defecto año anterior)."""
+    """con_bg_comparativo_periodo_xls: periodo anterior vs. actual (por defecto año anterior)."""
+    p = _actual_y_anterior(p)
     b = _Balance(p, (p.anio2, p.mes2))
-    c0, c1 = b.cortes
-    funciones, activas = b.preparar([(c0, c0.rango(p.acumulado)), (c1, c1.rango(p.acumulado))])
+    actual, anterior = b.cortes
+    funciones, activas = b.preparar([(anterior, anterior.rango(p.acumulado)),
+                                     (actual, actual.rango(p.acumulado))])
     lineas = selecciona(b.nomenclatura(), ORDEN_BG, b.nom, None if p.incluir_todas else activas)
     columnas = [
-        Columna(c0.leyenda(p.acumulado)), Columna(c1.leyenda(p.acumulado)),
+        Columna(anterior.leyenda(p.acumulado)), Columna(actual.leyenda(p.acumulado)),
         Columna("VARIACION", "MONTO", ("resta", 1, 0)), Columna("", "%", ("pct", 2, 0), ancho=11),
     ]
     filas = arma_bg(lineas, b.nom, b.nivel, columnas,
@@ -410,6 +421,8 @@ def estado_resultados_columnas(p):
 def _er_comparativo(p, titulo, diferencia_actual_menos_comparativo):
     r = _Resultados(p, (p.anio2, p.mes2))
     c0, c1 = r.cortes
+    if not diferencia_actual_menos_comparativo:   # contra otro periodo: anterior primero, como VFP
+        c0, c1 = c1, c0
     saldo, activas = r.preparar([(c0.ini, c0.fin), (c1.ini, c1.fin)])
     r0, r1 = c0.rango(p.acumulado), c1.rango(p.acumulado)
     lineas = selecciona(r.nomenclatura(), ORDEN_ER, r.nom, None if p.incluir_todas else activas)
@@ -432,7 +445,7 @@ def estado_resultados_comparativo_mes_anterior(p):
 
 def estado_resultados_comparativo_periodo(p):
     """con_er_comparativo_periodo_xls (periodo comparativo por defecto: año anterior)."""
-    return _er_comparativo(p, "ESTADO DE RESULTADOS COMPARATIVO PERIODO", False)
+    return _er_comparativo(_actual_y_anterior(p),"ESTADO DE RESULTADOS COMPARATIVO PERIODO", False)
 
 
 def estado_resultados_mensual(p):

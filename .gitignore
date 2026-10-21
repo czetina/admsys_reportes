@@ -6,6 +6,7 @@ __pycache__/
 !.env.example
 pruebas_salida/
 staticfiles/
+dist/
 .claude/
 *.log
 *.sqlite3

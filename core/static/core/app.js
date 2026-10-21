@@ -25,7 +25,8 @@
     try {
       const r = await fetch(url, { method: "POST", body: datos, headers: { "X-Requested-With": "fetch" } });
       const tipo = r.headers.get("Content-Type") || "";
-      if (r.ok && tipo.includes("spreadsheetml")) {
+      const esZip = tipo.includes("zip");
+      if (r.ok && (tipo.includes("spreadsheetml") || esZip)) {
         const blob = await r.blob();
         const nombre = nombreArchivo(r.headers.get("Content-Disposition"));
         const a = document.createElement("a");
@@ -35,10 +36,12 @@
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+        const faltan = Number(r.headers.get("X-No-Generados") || 0);
         Swal.fire({
-          icon: "success", title: "Excel generado",
-          html: `<div class="fw-semibold">${nombre}</div><div class="small text-secondary mt-1">Listo en ${r.headers.get("X-Tiempo") || "?"} s</div>`,
-          timer: 3500, showConfirmButton: false,
+          icon: faltan ? "warning" : "success", title: esZip ? "Paquete generado" : "Excel generado",
+          html: `<div class="fw-semibold">${nombre}</div><div class="small text-secondary mt-1">Listo en ${r.headers.get("X-Tiempo") || "?"} s</div>` +
+            (faltan ? `<div class="small text-danger mt-2">${faltan} reporte(s) no se generaron: vea NO GENERADOS.txt</div>` : ""),
+          timer: faltan ? undefined : 3500, showConfirmButton: !!faltan, confirmButtonColor: azul,
         });
         return;
       }

@@ -203,6 +203,33 @@ Pendientes:
 * `con_bg_ref_me_xls`, `con_mov_centro_costo_dmg_td`, `con_mov_centro_costo_det_cuenta_td`,
   `con_dmg_cc_plano`: están en `vfmenuc` pero sus formularios no existen en las copias revisadas.
 
+### Menú 40 – Presupuesto
+
+| Comando VFP | Reporte |
+|---|---|
+| `con_presupuesto` | Presupuesto general: presupuesto de cada cuenta de resultados mes a mes hasta el corte, con total |
+| `con_presupuesto_er_xls` | Ejecución presupuestaria (E.R.): mes y acumulado, presupuesto vs. real, de toda la empresa |
+
+Mismo cálculo que el de centros de costo (`empnomenclaturadet`, sumando todos los centros). Validado
+contra VFP (003 sep-2026): presupuesto general 55 cuentas sin diferencias; ejecución presupuestaria
+67 cuentas, los montos reales iguales.
+
+### Paquete de la junta directiva
+
+En el menú principal, **Paquete junta directiva** (`/financieros/junta/`) descarga un .zip con los
+reportes del cierre elegido; solo incluye los que el usuario tiene en su menú y, si alguno falla, lo
+explica en `NO GENERADOS.txt`. El mismo paquete, a una carpeta local:
+
+```bash
+python manage.py reportes_junta --empresa 003 --anio 2026 --mes 9 --carpeta "D:/Junta directiva"
+```
+
+Genera a Excel, en `<carpeta>/Junta <empresa> <año>-<mes>`, los reportes que la gerencia general
+presenta a la junta (`financieros/junta.py`): ejecución presupuestaria (E.R.), integración de saldos
+de CXC, y balance general y estado de resultados comparativos contra el mismo mes del año anterior.
+Cada uno sale con los valores iniciales de su formulario, igual que pedido a mano. Sin `--anio` /
+`--mes` toma el mes anterior; sin `--carpeta`, `Documentos\Junta directiva`.
+
 ### Cuentas por cobrar y por pagar (menú 50 de CTAXC / CTAXP)
 
 El mismo formulario VFP sirve a CXC y a CXP; en la web el comando lleva el prefijo del módulo
@@ -382,6 +409,8 @@ Resultado: cada reporte se genera en menos de 1 segundo.
   (antes dividía el movimiento del mes entre el acumulado anterior).
 * ER comparativo mes anterior: el % era periodo / variación; ahora es variación / periodo comparativo.
 * Comparativos: la nomenclatura es la unión de los dos ejercicios (como ya hacían los ER).
+* Comparativos contra otro periodo: el periodo más reciente es siempre el actual, sin importar en qué
+  casilla se capture; columnas anterior, actual y variación = actual − anterior, como en VFP.
 * Cuentas de orden: excluye transacciones anuladas (VFP no filtraba `anulado`).
 * Login: consultas con parámetros (VFP concatenaba texto → inyección SQL) y se
   excluyen usuarios con `es_inactivo = 1`.

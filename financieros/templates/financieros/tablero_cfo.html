@@ -19,6 +19,7 @@
   .cfo .pill { font-size: .72rem; border-radius: 999px; padding: 0 .5rem; border: 1px solid currentColor; white-space: nowrap; }
   .cfo .pill.ok { color: var(--ok); } .cfo .pill.vigilar { color: var(--warn); } .cfo .pill.fuera { color: var(--bad); } .cfo .pill.nd { color: var(--muted); }
   .cfo .rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: .75rem; }
+  .cfo .pagina[hidden], .cfo #contenido[hidden], .cfo #cargando[hidden] { display: none !important; }   /* d-grid de Bootstrap usa !important */
   .cfo .card-body { align-content: start; }
   .cfo .card h3 { font-size: 1rem; font-weight: 600; margin: 0; }
   .cfo .nota { font-size: .8rem; color: var(--muted); margin: 0; }

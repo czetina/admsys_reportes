@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titulo %}Tablero CFO{% endblock %}
+{% block extra_head %}
+<style>
+  .cfo { --ok: #15803d; --warn: #b45309; --bad: #dc2626; --grid: #e2e8f0; --eje: #94a3b8; --muted: #64748b;
+         --s0: #2563eb; --s1: #f59e0b; --s2: #10b981; --s3: #dc2626; --s4: #7c3aed; --s5: #0891b2; }
+  .cfo .tabs { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 1px solid var(--app-borde); }
+  .cfo .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: .5rem .9rem; color: var(--muted); margin-bottom: -1px; }
+  .cfo .tabs button[aria-selected="true"] { color: #0f172a; border-bottom-color: var(--s0); font-weight: 600; }
+  .cfo .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; }
+  .cfo .tile { background: #fff; border: 1px solid var(--app-borde); border-radius: .9rem; padding: .85rem 1rem; display: grid; gap: .25rem; }
+  .cfo .tile.fuera { border-color: var(--bad); }
+  .cfo .t-nombre { font-size: .8rem; color: var(--muted); display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
+  .cfo .t-valor { font-size: 1.6rem; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .cfo .t-pie { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cfo .t-spark { height: 34px; }
+  .cfo .bien { color: var(--ok); } .cfo .mal { color: var(--bad); }
+  .cfo .pill { font-size: .72rem; border-radius: 999px; padding: 0 .5rem; border: 1px solid currentColor; white-space: nowrap; }
+  .cfo .pill.ok { color: var(--ok); } .cfo .pill.vigilar { color: var(--warn); } .cfo .pill.fuera { color: var(--bad); } .cfo .pill.nd { color: var(--muted); }
+  .cfo .rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: .75rem; }
+  .cfo .card-body { align-content: start; }
+  .cfo .card h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+  .cfo .nota { font-size: .8rem; color: var(--muted); margin: 0; }
+  .cfo .chart { position: relative; min-height: 230px; }
+  .cfo .chart.gauge { min-height: 170px; }
+  .cfo .chart svg { display: block; overflow: visible; }
+  .cfo .chart text { fill: var(--muted); font-size: 11px; }
+  .cfo .chart .etq { fill: #0f172a; }
+  .cfo .tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--app-borde); border-radius: .5rem;
+              box-shadow: 0 6px 20px rgba(15,23,42,.12); padding: .3rem .55rem; font-size: .78rem; white-space: nowrap; z-index: 5; }
+  .cfo .tip .tt { color: var(--muted); }
+  .cfo .tip i, .cfo .leyenda i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+  .cfo .leyenda { display: flex; flex-wrap: wrap; gap: .9rem; font-size: .78rem; color: var(--muted); }
+  .cfo table.t { font-size: .85rem; font-variant-numeric: tabular-nums; }
+  .cfo table.t th { font-size: .75rem; color: var(--muted); font-weight: 600; position: sticky; top: 0; background: #fff; }
+  .cfo .tabla-alta { max-height: 70vh; overflow: auto; }
+  .cfo .regla { border-left: 4px solid var(--app-borde); }
+  .cfo .regla.critica { border-left-color: var(--bad); } .cfo .regla.advertencia { border-left-color: var(--warn); }
+  .cfo .regla dl { display: grid; grid-template-columns: auto 1fr; gap: .25rem .9rem; font-size: .85rem; margin: 0; }
+  .cfo .regla dt { color: var(--muted); font-weight: 500; } .cfo .regla dd { margin: 0; }
+  .cfo .mail { font-family: ui-monospace, Consolas, monospace; font-size: .8rem; background: #f8fafc; border: 1px solid var(--app-borde);
+               border-radius: .5rem; padding: .75rem; white-space: pre-wrap; margin: 0; }
+  .cfo .cargando { min-height: 50vh; display: grid; place-items: center; color: var(--muted); }
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="cfo" id="cfo" data-url-datos="{% url 'tablero_cfo_datos' %}" data-url-excel="{% url 'tablero_cfo_excel' %}">
+  <nav class="migas mb-2"><a href="{% url 'inicio' %}"><i class="bi bi-house me-1"></i>Reportes</a>
+    <span class="text-secondary mx-1">/</span> <span class="text-secondary">Tablero CFO</span></nav>
+  <div class="encabezado-pagina d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+    <div class="min-w-0">
+      <h1 class="h3 mb-1">Tablero CFO</h1>
+      <p class="mb-0" id="takeaway">Indicadores financieros y de arrendamiento de los últimos 12 meses.</p>
+    </div>
+    <form class="d-flex flex-wrap align-items-end gap-2" id="form-cierre">
+      <div><label class="form-label small mb-1" for="cierre-anio">Año</label>
+        <input type="number" class="form-control form-control-sm" id="cierre-anio" min="1990" max="2100" value="{{ anio }}" style="width: 6.5rem"></div>
+      <div><label class="form-label small mb-1" for="cierre-mes">Mes de cierre</label>
+        <select class="form-select form-select-sm" id="cierre-mes">
+          {% for n, nombre in meses %}<option value="{{ n }}"{% if n == mes %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+        </select></div>
+      <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-arrow-repeat me-1"></i>Actualizar</button>
+      <button class="btn btn-sm btn-outline-success" type="button" id="btn-excel"><i class="bi bi-file-earmark-excel me-1"></i>Excel</button>
+    </form>
+  </div>
+
+  <nav class="tabs mb-3" role="tablist" aria-label="Módulos">
+    <button role="tab" data-pag="resumen" aria-selected="true">Resumen</button>
+    <button role="tab" data-pag="rentabilidad" aria-selected="false">Rentabilidad y margen</button>
+    <button role="tab" data-pag="cartera" aria-selected="false">Cartera y riesgo</button>
+    <button role="tab" data-pag="solvencia" aria-selected="false">Solvencia y liquidez</button>
+    <button role="tab" data-pag="eficiencia" aria-selected="false">Eficiencia NIIF 15/16</button>
+    <button role="tab" data-pag="matriz" aria-selected="false">Matriz de indicadores</button>
+    <button role="tab" data-pag="alertas" aria-selected="false">Alertas al CFO</button>
+  </nav>
+
+  <div class="cargando" id="cargando"><div class="text-center"><div class="spinner-border text-primary mb-2" role="status"></div>
+    <div>Calculando 12 meses de indicadores…</div><div class="small">La primera vez del mes tarda unos segundos.</div></div></div>
+
+  <div id="contenido" hidden>
+    <section class="pagina d-grid gap-3" id="resumen">
+      <div class="rejilla" id="semaforos"></div>
+      <div class="card"><div class="card-body d-grid gap-2">
+        <h3>Alertas que se enviarían hoy al CFO</h3>
+        <p class="nota">Reglas de la pestaña «Alertas al CFO», evaluadas con el cierre.</p>
+        <div class="table-responsive"><table class="table table-sm t mb-0" id="tabla-alertas">
+          <thead><tr><th>Regla</th><th>Nivel</th><th>Motivo</th></tr></thead><tbody></tbody></table></div>
+      </div></div>
+    </section>
+
+    <section class="pagina d-grid gap-3" id="rentabilidad" hidden>
+      <p class="nota">Flujos de los últimos 12 meses sobre el saldo promedio de 13 cierres. El resultado es antes de ISR, que no se registra mensualmente.</p>
+      <div class="tiles" data-tiles="roe roa spread nim margen_neto"></div>
+      <div class="rejilla">
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Spread: tasa activa contra costo de fondos</h3>
+          <p class="nota">Tasas anuales, %. El área es el spread; meta 5 p.p. o más.</p>
+          <div class="leyenda"><span><i style="background:var(--s0)"></i>Tasa activa</span><span><i style="background:var(--s1)"></i>Costo de fondos</span></div>
+          <div class="chart" id="ch-spread"></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>ROE contra banda meta</h3>
+          <p class="nota">Banda: 15 % a 20 %.</p><div class="chart" id="ch-roe"></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>NIM y ROA</h3>
+          <div class="leyenda"><span><i style="background:var(--s0)"></i>NIM</span><span><i style="background:var(--s2)"></i>ROA</span></div>
+          <div class="chart" id="ch-nim"></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Margen neto de utilidad</h3>
+          <p class="nota">Línea: meta 18 %.</p><div class="chart" id="ch-margen"></div></div></div>
+      </div>
+    </section>
+
+    <section class="pagina d-grid gap-3" id="cartera" hidden>
+      <p class="nota">Morosidad: facturas y notas de débito de CXC vencidas, sobre la cartera neta (clientes y contratos CP / LP menos ingresos por devengar).</p>
+      <div class="tiles" data-tiles="npl_90 npl_30 cobertura dso desv_vr"></div>
+      <div class="rejilla">
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Morosidad por tramo de atraso</h3>
+          <p class="nota">Cuotas vencidas ÷ cartera neta, %. Línea: límite 3 % para el tramo 90+.</p>
+          <div class="leyenda"><span><i style="background:var(--s0)"></i>&gt; 30 días</span><span><i style="background:var(--s1)"></i>&gt; 60 días</span><span><i style="background:var(--s3)"></i>&gt; 90 días</span></div>
+          <div class="chart" id="ch-npl"></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Cobertura de provisiones</h3>
+          <p class="nota">Estimaciones y reservas ÷ cuotas vencidas &gt; 90 días. Meta 100 % o más.</p>
+          <div class="chart gauge" id="ch-cobertura"></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Días promedio de cobro (DSO)</h3>
+          <p class="nota">Cuotas facturadas por cobrar ÷ ingresos facturados de 12 meses × 365. Límite 30 días.</p>
+          <div class="chart" id="ch-dso"></div></div></div>
+      </div>
+    </section>
+
+    <section class="pagina d-grid gap-3" id="solvencia" hidden>
+      <div class="tiles" data-tiles="razon_corriente prueba_acida deuda_patrimonio endeudamiento dscr tie"></div>
+      <div class="rejilla">
+        <div class="card"><div class="card-body d-grid gap-2"><h3>DSCR: cobertura del servicio de la deuda</h3>
+          <p class="nota">EBITDA aproximado ÷ (intereses + capital pagado desde bancos), 12 meses. Covenant 1.25x, ideal 1.40x.</p>
+          <div class="chart" id="ch-dscr"></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Apalancamiento: deuda / patrimonio</h3>
+          <p class="nota">Límite 5.0x.</p><div class="chart" id="ch-de"></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Razón corriente y endeudamiento</h3>
+          <p class="nota">Cierre contra su rango meta.</p>
+          <div class="rejilla"><div class="chart gauge" id="ch-rc"></div><div class="chart gauge" id="ch-da"></div></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Cobertura de intereses (TIE)</h3>
+          <p class="nota">UAII ÷ intereses, 12 meses. Línea: meta 1.5x.</p><div class="chart" id="ch-tie"></div></div></div>
+      </div>
+    </section>
+
+    <section class="pagina d-grid gap-3" id="eficiencia" hidden>
+      <div class="tiles" data-tiles="eficiencia part_niif16 rotacion_activos"></div>
+      <div class="rejilla">
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Segregación de ingresos por componente</h3>
+          <p class="nota">Ingresos de cada mes, miles de quetzales.</p>
+          <div class="leyenda" id="ley-ingresos"></div><div class="chart" id="ch-ingresos"></div></div></div>
+        <div class="card"><div class="card-body d-grid gap-2"><h3>Ratio de eficiencia</h3>
+          <p class="nota">Gastos operativos ÷ (ingresos por arrendamiento − costo de financiamiento), 12 meses. Límite 45 %.</p>
+          <div class="chart" id="ch-eficiencia"></div></div></div>
+      </div>
+    </section>
+
+    <section class="pagina" id="matriz" hidden>
+      <div class="card"><div class="card-body d-grid gap-2">
+        <h3>Matriz de indicadores</h3>
+        <p class="nota">Fórmula, cuentas de ADMSys de donde sale, frecuencia, meta y visualización.</p>
+        <input type="search" class="form-control form-control-sm" id="buscar-matriz" placeholder="Buscar indicador, fórmula o cuenta" style="max-width: 22rem">
+        <div class="tabla-alta"><table class="table table-sm t mb-0" id="tabla-matriz">
+          <thead><tr><th>Módulo</th><th>Indicador</th><th>Fórmula</th><th>Fuente en ADMSys</th><th>Frecuencia</th><th>Meta</th><th>Visualización</th><th class="text-end">Último</th></tr></thead>
+          <tbody></tbody></table></div>
+      </div></div>
+    </section>
+
+    <section class="pagina d-grid gap-3" id="alertas" hidden>
+      <p class="nota">Tres reglas que se evalúan en cada cierre. Crítica: correo inmediato al CFO con copia a Riesgos; advertencia: resumen semanal.</p>
+      <div class="rejilla" id="reglas"></div>
+      <div class="card"><div class="card-body d-grid gap-2"><h3>Correo de ejemplo</h3>
+        <p class="nota">Lo que enviaría la regla de mayor nivel con el cierre actual.</p><pre class="mail" id="correo"></pre></div></div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="{% static 'financieros/tablero_cfo.js' %}"></script>
+{% endblock %}

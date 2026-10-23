@@ -333,6 +333,9 @@ def hermanas(comando, permitidos):
     _, rep, _ = lugar
     return rep, [{"etiqueta": e, "comando": c, "actual": c == comando} for e, c in rep.variantes if c in permitidos]
 
+# Tablero CFO (financieros/tablero_cfo.py): se muestra a quien tiene estos reportes en su menú
+TABLERO_REQUIERE = ("con_bg_xls", "con_er_xls")
+
 # Paquete de la junta directiva (financieros/junta.py): (comando, nombre corto), en orden
 REPORTES_JUNTA = (
     ("con_presupuesto_er_xls", "Ejecución presupuestaria"),

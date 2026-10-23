@@ -214,6 +214,26 @@ Mismo cálculo que el de centros de costo (`empnomenclaturadet`, sumando todos l
 contra VFP (003 sep-2026): presupuesto general 55 cuentas sin diferencias; ejecución presupuestaria
 67 cuentas, los montos reales iguales.
 
+### Tablero CFO
+
+Botón **Tablero CFO** en el menú principal (`/financieros/tablero-cfo/`), para quien tiene el
+balance general y el estado de resultados en su menú. Muestra 20 indicadores de los 12 meses que
+terminan en el cierre elegido, en cinco pestañas (resumen con semáforo, rentabilidad, cartera,
+solvencia, eficiencia NIIF 15 / 16), la matriz de indicadores, tres alertas al CFO y descarga a
+Excel con fórmulas vivas. Cálculo en `financieros/tablero_cfo.py`, Excel en `tablero_cfo_excel.py`.
+
+* Cuentas de cada variable en `CUENTAS` (prefijos de 003; otra empresa agrega su entrada).
+* Cartera neta: clientes CP / LP y contratos en arrendamiento CP / LP, sin estimaciones, menos
+  ingresos por devengar. Morosidad: facturas y notas de débito de CXC vencidas (las notas de
+  reclasificación y los pagarés no tienen el vencimiento de las cuotas).
+* Rentabilidad, márgenes y coberturas: flujos de 12 meses sobre el saldo promedio de 13 cierres.
+  Resultado antes de ISR (no se registra mensualmente).
+* DSCR: EBITDA aproximado ÷ (intereses + capital pagado desde bancos, sin reclasificaciones LP / CP
+  ni diferencial cambiario).
+* Desviación del valor residual: no aplica sin arrendamiento operativo.
+* Saldos solo de cuentas de último nivel: activo, pasivo y patrimonio de sep-2026 (003) iguales al
+  balance general. Primera carga del mes ~16 s (12 antigüedades de CXC); después, caché de 30 min.
+
 ### Paquete de la junta directiva
 
 En el menú principal, **Paquete junta directiva** (`/financieros/junta/`) descarga un .zip con los

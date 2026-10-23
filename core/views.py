@@ -59,6 +59,8 @@ def inicio(request):
     permitidos = {v["comando"] for cat in categorias for rep in cat["reportes"] for v in rep["variantes"]}
     recientes = [r for r in request.session.get(RECIENTES, []) if r["comando"] in permitidos]
     junta = any(c in permitidos for c, _ in catalogo.REPORTES_JUNTA)
+    tablero = all(c in permitidos for c in catalogo.TABLERO_REQUIERE)
     return render(request, "core/inicio.html", {"categorias": categorias, "recientes": recientes, "junta": junta,
+                                                "tablero": tablero,
                                                 "total": sum(len(c["reportes"]) for c in categorias),
                                                 "modulos": len({c["modulo"] for c in categorias})})

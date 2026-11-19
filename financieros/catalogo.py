@@ -333,7 +333,16 @@ def hermanas(comando, permitidos):
     _, rep, _ = lugar
     return rep, [{"etiqueta": e, "comando": c, "actual": c == comando} for e, c in rep.variantes if c in permitidos]
 
-# Tablero CFO (financieros/tablero_cfo.py): se muestra a quien tiene estos reportes en su menú
+# Tablero CFO y paquete de la junta: solo en estas empresas y solo para administradores
+# (supervisor en vfusers o perfil super administrador, como queda en la sesión al entrar).
+EMPRESAS_DIRECCION = ("003",)
+
+
+def es_direccion(usuario):
+    return usuario["codempresa"] in EMPRESAS_DIRECCION and bool(usuario.get("supervisor"))
+
+
+# Tablero CFO (financieros/tablero_cfo.py): además hay que tener estos reportes en el menú
 TABLERO_REQUIERE = ("con_bg_xls", "con_er_xls")
 
 # Paquete de la junta directiva (financieros/junta.py): (comando, nombre corto), en orden

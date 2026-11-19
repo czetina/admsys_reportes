@@ -8,12 +8,15 @@ from django.utils.http import content_disposition_header
 from core import menu
 
 from . import junta
+from .catalogo import es_direccion
 from .forms import JuntaForm
 from .views import _es_fetch
 
 
 def reportes_permitidos(usuario):
-    """Los reportes del paquete que el usuario tiene en su menú (vfaccess)."""
+    """Los reportes del paquete que el usuario tiene en su menú (vfaccess); solo administradores de 003."""
+    if not es_direccion(usuario):
+        return []
     permitidos = {op["comando"] for op in menu.opciones_todas(usuario)}
     return [(c, n) for c, n in junta.REPORTES_JUNTA if c in permitidos]
 
@@ -22,8 +25,8 @@ def paquete(request):
     incluidos = reportes_permitidos(request.usuario)
     if not incluidos:
         if _es_fetch(request):
-            return JsonResponse({"error": "No tiene acceso a los reportes de la junta."}, status=403)
-        return HttpResponseForbidden("No tiene acceso a los reportes de la junta.")
+            return JsonResponse({"error": "El paquete de la junta es solo para administradores de la empresa 003."}, status=403)
+        return HttpResponseForbidden("El paquete de la junta es solo para administradores de la empresa 003.")
     con_acceso = {c for c, _ in incluidos}
     contexto = {"reportes": [{"nombre": n, "comando": c, "acceso": c in con_acceso} for c, n in junta.REPORTES_JUNTA]}
 

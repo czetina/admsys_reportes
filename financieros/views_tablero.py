@@ -8,13 +8,15 @@ from django.utils.http import content_disposition_header
 from core import menu
 
 from . import tablero_cfo, tablero_cfo_excel
-from .catalogo import TABLERO_REQUIERE
+from .catalogo import TABLERO_REQUIERE, es_direccion
 from .contexto import ErrorReporte
 from .forms import MESES
 from .views import XLSX
 
 
 def tiene_acceso(usuario):
+    if not es_direccion(usuario):
+        return False
     permitidos = {op["comando"] for op in menu.opciones_todas(usuario)}
     return all(c in permitidos for c in TABLERO_REQUIERE)
 
@@ -31,7 +33,8 @@ def _cierre(request):
 
 def pagina(request):
     if not tiene_acceso(request.usuario):
-        return HttpResponseForbidden("No tiene acceso al tablero: requiere el balance general y el estado de resultados.")
+        return HttpResponseForbidden("No tiene acceso al tablero: es solo para administradores de la empresa 003 "
+                                     "con el balance general y el estado de resultados.")
     anio, mes = _cierre(request)
     return render(request, "financieros/tablero_cfo.html", {"anio": anio, "mes": mes, "meses": MESES})
 

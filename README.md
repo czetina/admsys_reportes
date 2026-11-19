@@ -216,8 +216,10 @@ contra VFP (003 sep-2026): presupuesto general 55 cuentas sin diferencias; ejecu
 
 ### Tablero CFO
 
-Botón **Tablero CFO** en el menú principal (`/financieros/tablero-cfo/`), para quien tiene el
-balance general y el estado de resultados en su menú. Muestra 20 indicadores de los 12 meses que
+Botón **Tablero CFO** en el menú principal (`/financieros/tablero-cfo/`), solo para administradores
+(`supervisor` en `vfusers` o perfil super administrador) de la empresa 003 (`EMPRESAS_DIRECCION` en
+`financieros/catalogo.py`) que además tienen el balance general y el estado de resultados en su
+menú; para los demás no aparece el botón y la URL responde 403. Muestra 20 indicadores de los 12 meses que
 terminan en el cierre elegido, en cinco pestañas (resumen con semáforo, rentabilidad, cartera,
 solvencia, eficiencia NIIF 15 / 16), la matriz de indicadores, tres alertas al CFO y descarga a
 Excel con fórmulas vivas. Cálculo en `financieros/tablero_cfo.py`, Excel en `tablero_cfo_excel.py`.
@@ -237,8 +239,10 @@ Excel con fórmulas vivas. Cálculo en `financieros/tablero_cfo.py`, Excel en `t
 ### Paquete de la junta directiva
 
 En el menú principal, **Paquete junta directiva** (`/financieros/junta/`) descarga un .zip con los
-reportes del cierre elegido; solo incluye los que el usuario tiene en su menú y, si alguno falla, lo
-explica en `NO GENERADOS.txt`. El mismo paquete, a una carpeta local:
+reportes del cierre elegido. Igual que el tablero, es solo para administradores de la empresa 003;
+incluye solo los reportes que el usuario tiene en su menú y, si alguno falla, lo explica en
+`NO GENERADOS.txt`. El mismo paquete, a una carpeta local (lo corre quien opera el servidor, sin esa
+restricción):
 
 ```bash
 python manage.py reportes_junta --empresa 003 --anio 2026 --mes 9 --carpeta "D:/Junta directiva"

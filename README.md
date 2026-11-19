@@ -214,6 +214,25 @@ Mismo cálculo que el de centros de costo (`empnomenclaturadet`, sumando todos l
 contra VFP (003 sep-2026): presupuesto general 55 cuentas sin diferencias; ejecución presupuestaria
 67 cuentas, los montos reales iguales.
 
+### Menú 70 – Reportes varios
+
+En el menú principal, categoría «Revisión de documentos» (`financieros/reportes_varios.py`).
+
+| Comando VFP | Reporte |
+|---|---|
+| `con_detalle_poliza_de_docs` | Cada documento (en negrita, con el total de cargos y abonos de su póliza) y sus partidas contables; en rojo, el documento contable sin póliza o descuadrado. Los no contables muestran el documento que los generó (`keyref`) |
+| `con_detalle_aplicacion_a_docs` | Cada documento con lo que aplica o le aplican (los dos sentidos de `transacciones_aplica`), valor aplicado y saldo corrido; en rojo, si alguna aplicación es de otra clasificación |
+| `con_cuadre_impuestos` | Documentos con IVA por pagar / por cobrar, timbre de prensa o IVA combustible en los meses pedidos, contra las partidas en la cuenta del impuesto del periodo (`empperiodos`), con la diferencia y si está contabilizado |
+
+Filtros de los dos «detalle»: sistema, cuenta de caja / bancos, rangos de tipo, serie, directorio y
+número, moneda y clasificaciones. VFP hacía una o dos consultas por documento; aquí una por lote de
+llaves. No migrado: `con_detalle_poliza_de_docs_td` (está en el menú, el formulario no existe).
+
+Validación (003 sep-2026, desarrollo y producción): cargos y abonos de la póliza (12,383,208.65),
+valor de los documentos y total aplicado iguales a la suma directa en la base; cuadre de IVA por
+pagar: 80 documentos, IVA 150,395.49 contra 150,392.95 abonado en la cuenta 201010301. Producción:
+1–3 s por reporte.
+
 ### Tablero CFO
 
 Botón **Tablero CFO** en el menú principal (`/financieros/tablero-cfo/`), solo para administradores
@@ -503,6 +522,21 @@ Resultado: cada reporte se genera en menos de 1 segundo.
   de directorios solo se aplicaba a ingresos y lo vencido antes del rango solo se mostraba en ingresos.
   Correlativo general: el salto de numeración se compara dentro de la misma cuenta, tipo y serie
   (los depósitos y notas usan el número del banco y saltan por naturaleza).
+* Menú 70, cuadre de impuestos: «Meses a reportar» cuenta hacia atrás desde el mes elegido (VFP
+  sumaba los meses a la fecha inicial y con más de un mes la fecha inicial quedaba después de la
+  final: no traía nada). IVA por pagar busca en CXC y FAC (VFP fijaba CXC aunque se eligiera otro
+  sistema; en 003 las facturas con IVA están en FAC y el reporte salía vacío). Una fila por documento
+  con la suma de sus partidas en la cuenta del impuesto (VFP repetía el documento por cada partida) y
+  sin anulados. «Solo facturas de la agencia» viene desmarcado (en VFP venía marcado).
+* Menú 70, detalle de aplicación: «solo no aplicados» = documentos sin aplicar o aplicados en parte
+  (VFP comparaba `codempresa != codempresa` en las subconsultas del saldo y solo salían los que no
+  tenían ninguna aplicación); «clasificaciones incongruentes» revisa los dos sentidos de la aplicación
+  (VFP repetía la misma subconsulta) y el reporte va ordenado por fecha y documento (VFP no ordenaba y
+  agrupaba por la llave del documento).
+* Menú 70, detalle de póliza: las partidas con una cuenta que no existe en la nomenclatura salen
+  marcadas (VFP las omitía con un INNER JOIN); el documento sin póliza o descuadrado sale en rojo (VFP
+  pintaba el color del «no actualizado» en la fila del documento anterior y el del descuadre en la fila
+  en blanco).
 * CXC / CXP Integración de saldos ordenada por nombre: VFP indexa razón social + fecha y luego agrupa por
   código de directorio consecutivo; si un cliente tiene varios contratos (directorios con la misma razón
   social) sus documentos se intercalan por fecha, cada contrato queda partido en bloques y el RESUMEN

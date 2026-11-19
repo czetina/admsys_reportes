@@ -31,7 +31,7 @@ CAMPOS_EXTRA = ("centro", "centros", "cc_desde", "cc_hasta", "cuenta_desde", "cu
                 "estado_reg", "valor_doc", "proyectar_por", "primer_dia", "mostrar_por", "resolucion",
                 "activo_desde", "activo_hasta", "ubica_desde", "ubica_hasta", "tipoact_desde", "tipoact_hasta",
                 "depto_desde", "depto_hasta", "responsable_desde", "responsable_hasta", "orden_activos",
-                "codresponsable")
+                "codresponsable", "codsistema_doc", "impuesto")
 
 
 def arma_parametros(d, definicion, codempresa, coduser):

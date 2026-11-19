@@ -16,6 +16,7 @@ from . import reportes_chq as chq
 from . import reportes_ctacte as ctacte
 from . import reportes_fac as fac
 from . import reportes_iva as iva
+from . import reportes_varios as varios
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,9 @@ class Definicion:
 
 
 _BG = {"incluir_todas": False, "no_saldo_cero": True, "fecha_hora": True}
+# Menú 70: filtros de los formularios «detalle de … de documentos»
+_FILTROS_DOCS = ("sistema_doc", "cuenta_chq_opc", "tipo_rango", "serie_rango", "directorio_rango", "numero_rango",
+                 "moneda", "clasificaciones")
 _ER = {"acumulado": True, "incluir_todas": False, "fecha_hora": True}
 
 REPORTES = {
@@ -173,6 +177,21 @@ REPORTES = {
                                           {"acumulado": True, "incluir_todas": False}, campos=("folio", "resolucion")),
     "con_ef_balance_de_saldos_xls": Definicion("BALANCE DE SALDOS", libros_fiscales.balance_de_saldos_ef,
                                                {"fecha_hora": True}, campos=("folio",)),
+
+    # ---------------------------------------------- 70 Reportes varios
+    "con_detalle_aplicacion_a_docs": Definicion(
+        "DETALLE DE APLICACIÓN A DOCUMENTOS", varios.detalle_aplicacion,
+        {"solo_no_aplicados": False, "solo_incongruentes": False, "fecha_hora": False},
+        campos=_FILTROS_DOCS, usa_nivel=False, usa_periodo=False, usa_fecha_inicial=True),
+    "con_detalle_poliza_de_docs": Definicion(
+        "DETALLE DE PÓLIZA DE DOCUMENTOS", varios.detalle_poliza,
+        {"incluye_no_contables": False, "solo_desactualizados": False, "incluir_regs_aux": False,
+         "mostrar_llaves": False, "fecha_hora": False},
+        campos=_FILTROS_DOCS, usa_nivel=False, usa_periodo=False, usa_fecha_inicial=True),
+    "con_cuadre_impuestos": Definicion(
+        "CUADRE DE IMPUESTOS", varios.cuadre_impuestos,
+        {"solo_no_contabilizados": False, "solo_agencia": False, "mostrar_llaves": False},
+        campos=("impuesto", "sistema_doc", "meses", "orden"), usa_nivel=False, meses_inicial=1),
 }
 
 
@@ -438,6 +457,13 @@ ETIQUETAS = {
     "detalle_no_entregados": "Detallar documentos no entregados (hoja aparte)",
     "detalle_caducados": "Detallar documentos caducados (hoja aparte)",
     "mostrar_resumen_bancos": "Mostrar resumen de disponibilidad (hoja de bancos)",
+    "solo_no_contabilizados": "Solo movimientos no contabilizados",
+    "solo_agencia": "Mostrar solo facturas a nombre de la agencia",
+    "solo_no_aplicados": "Solo documentos no aplicados (o aplicados en parte)",
+    "solo_incongruentes": "Solo clasificaciones incongruentes",
+    "incluye_no_contables": "Incluir movimientos no contables",
+    "solo_desactualizados": "Solo movimientos desactualizados",
+    "incluir_regs_aux": "Incluir registros auxiliares del sistema",
 }
 
 

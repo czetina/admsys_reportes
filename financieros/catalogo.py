@@ -127,6 +127,15 @@ CATEGORIAS = (
                 "bi-bank", (("Balance general", "con_libro_estfin_bg_xls"), ("Resultados", "con_libro_estfin_er_xls"),
                             ("Balance de saldos", "con_ef_balance_de_saldos_xls"))),
     )),
+    Categoria("varios", "Revisión de documentos", "bi-search", (
+        Reporte("Detalle de póliza de documentos", "Cada documento con sus partidas contables; marca los descuadrados",
+                "bi-journal-check", (("Excel", "con_detalle_poliza_de_docs"),
+                                     ("Tabla dinámica", "con_detalle_poliza_de_docs_td"))),
+        Reporte("Detalle de aplicación a documentos", "Cada documento con lo que aplica o le aplican y su saldo",
+                "bi-link-45deg", (("Excel", "con_detalle_aplicacion_a_docs"),)),
+        Reporte("Cuadre de impuestos", "Impuesto de cada documento contra lo registrado en la póliza",
+                "bi-percent", (("Excel", "con_cuadre_impuestos"),)),
+    )),
 )
 
 def _cuenta_corriente(pre, modulo, quien):

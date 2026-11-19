@@ -364,6 +364,20 @@ class ParametrosForm(forms.Form):
                 label="Resolución", required=False, max_length=60,
                 help_text="Número de resolución de la SAT que autoriza el libro (sale en el encabezado)",
                 widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Opcional"}))
+        if "sistema_doc" in campos:     # VFP: ownsistemas habilitados que usan documentos
+            sistemas = consulta("SELECT codsistema, nomsistema FROM ownsistemas WHERE habilitado = 1 AND nousadoctos = 0 "
+                                "ORDER BY codsistema")
+            self.fields["codsistema_doc"] = forms.ChoiceField(
+                label="Sistema", required=False, widget=forms.Select(attrs=select),
+                initial=getattr(self.definicion, "sistema_inicial", ""),
+                choices=[("", "— Todos —")] + [(s["codsistema"].strip(), f"{s['codsistema'].strip()} · "
+                                                f"{s['nomsistema'].strip()}") for s in sistemas])
+        if "impuesto" in campos:
+            from .reportes_varios import ETIQUETAS_IMPUESTO
+            self.fields["impuesto"] = forms.ChoiceField(
+                label="Impuesto a cuadrar", initial="iva_pagar", widget=forms.Select(attrs=select),
+                choices=list(ETIQUETAS_IMPUESTO.items()),
+                help_text="IVA por pagar busca en CXC y FAC, e IVA por cobrar en CXP, si no se elige sistema")
         if "folio" in campos:
             self.fields["folio"] = forms.IntegerField(
                 label="Folio inicial", min_value=0, max_value=999999, initial=0, required=False,
@@ -383,7 +397,7 @@ class ParametrosForm(forms.Form):
 
     @property
     def campos_centro(self):
-        nombres = ("centro", "cc_desde", "cc_hasta", "cuenta_desde", "cuenta_hasta", "directorio_desde",
+        nombres = ("impuesto", "codsistema_doc", "centro", "cc_desde", "cc_hasta", "cuenta_desde", "cuenta_hasta", "directorio_desde",
                    "directorio_hasta", "meses", "anio_ini", "mes_ini", "orden", "presentacion", "folio",
                    "tipo_saldos", "fecha_base", "orden_cc", "intervalo", "columnas_antiguedad", "codmoneda",
                    "codaca", "cuenta_aux", "no_contrato", "codtipo", "docref", "estado_doc", "sucursal",

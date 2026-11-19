@@ -62,6 +62,8 @@
 </main>
 {% endblock %}
 
+<footer class="pie-version text-center text-secondary small py-3 no-imprimir">ADMSys Reportes · versión {{ version }}</footer>
+
 {% if messages %}
 <script type="application/json" id="mensajes-data">[{% for m in messages %}{"nivel": "{{ m.tags|default:'info' }}", "texto": "{{ m|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
 {% endif %}

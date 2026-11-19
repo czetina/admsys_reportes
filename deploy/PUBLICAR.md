@@ -90,3 +90,12 @@ una clave de ejemplo).
   `collectstatic` (definir `STATIC_ROOT`).
 * Que la carpeta del proyecto no esté dentro de la raíz pública del sitio.
 * Verificación: `python manage.py check --deploy` con las variables de producción definidas.
+
+## 6. Actualizaciones (zip solo con los archivos cambiados)
+
+1. El zip trae todo dentro de una carpeta `admsys_reportes/`: copiar el **contenido** de esa carpeta
+   encima de la instalación (cada archivo a su misma ruta), no la carpeta dentro de la instalación.
+2. Si el zip trae archivos de `static/`, correr `python manage.py collectstatic --noinput`.
+3. Reiniciar el servicio de la web (o el sitio en IIS): Python no relee el código hasta reiniciar.
+4. Comprobar al pie de cualquier página «versión <commit> <fecha>»: debe ser el commit del nombre del
+   zip. Si sale otro, los archivos no se copiaron a su lugar o el servicio no se reinició.

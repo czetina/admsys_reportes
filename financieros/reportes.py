@@ -158,6 +158,16 @@ class Parametros:
     proyectar_por: str = "mes"    # flujo proyectado: semana | mes | anio
     primer_dia: int = 0           # 0 = lunes ... 6 = domingo
     mostrar_por: str = "directorio"   # directorio | clasificacion | aca
+    # Contabilidad, menú 70 (reportes varios)
+    codsistema_doc: str = ""      # sistema de los documentos (vacío = todos)
+    impuesto: str = "iva_pagar"   # cuadre de impuestos: iva_pagar | iva_cobrar | timbre_prensa | combustible
+    solo_no_contabilizados: bool = False
+    solo_agencia: bool = False
+    solo_no_aplicados: bool = False
+    solo_incongruentes: bool = False
+    incluye_no_contables: bool = False
+    solo_desactualizados: bool = False
+    incluir_regs_aux: bool = False
 
 
 @dataclass

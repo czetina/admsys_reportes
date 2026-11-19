@@ -5,3 +5,5 @@
 README.md export-ignore
 deploy/empaquetar.py export-ignore
 deploy/usuario_solo_lectura.sql export-ignore
+# git archive escribe aquí el commit y su fecha (se muestran al pie de cada página)
+core/VERSION export-subst

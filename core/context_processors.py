@@ -1,5 +1,7 @@
 from django.conf import settings
 
+from . import version
+
 # ambiente -> (etiqueta, clase CSS, abreviatura para el título de la pestaña)
 AMBIENTES = {
     "desarrollo": ("Desarrollo", "ambiente-desarrollo", "DES"),
@@ -9,7 +11,7 @@ AMBIENTES = {
 
 
 def sesion(request):
-    return {"usuario": getattr(request, "usuario", None), "ambiente": _ambiente()}
+    return {"usuario": getattr(request, "usuario", None), "ambiente": _ambiente(), "version": version.actual()}
 
 
 def _ambiente():
